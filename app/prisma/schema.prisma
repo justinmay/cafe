@@ -1,0 +1,116 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id             String               @id @default(cuid())
+  username       String               @unique
+  passwordHash   String
+  createdAt      DateTime             @default(now())
+  memberships    OrganizationMember[]
+}
+
+model OrganizationMember {
+  id             String       @id @default(cuid())
+  role           String       @default("owner") // owner, admin
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdAt      DateTime     @default(now())
+
+  @@unique([userId, organizationId])
+  @@index([userId])
+  @@index([organizationId])
+}
+
+model Organization {
+  id        String               @id @default(cuid())
+  slug      String               @unique
+  name      String
+  createdAt DateTime             @default(now())
+  updatedAt DateTime             @updatedAt
+  members   OrganizationMember[]
+  menuItems MenuItem[]
+  orders    Order[]
+}
+
+model MenuItem {
+  id             String       @id @default(cuid())
+  name           String
+  description    String?
+  image          String?
+  price          Int
+  available      Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  modifiers      Modifier[]
+  orderItems     OrderItem[]
+
+  @@index([organizationId])
+}
+
+model Modifier {
+  id         String           @id @default(cuid())
+  name       String
+  menuItemId String
+  menuItem   MenuItem         @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  options    ModifierOption[]
+}
+
+model ModifierOption {
+  id                 String              @id @default(cuid())
+  name               String
+  priceAdjustment    Int                 @default(0)
+  modifierId         String
+  modifier           Modifier            @relation(fields: [modifierId], references: [id], onDelete: Cascade)
+  orderItemModifiers OrderItemModifier[]
+}
+
+model Order {
+  id             String       @id @default(cuid())
+  orderNumber    Int          @default(autoincrement())
+  customerName   String
+  status         OrderStatus  @default(RECEIVED)
+  total          Int
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  items          OrderItem[]
+
+  @@index([organizationId])
+}
+
+model OrderItem {
+  id         String              @id @default(cuid())
+  quantity   Int
+  unitPrice  Int
+  orderId    String
+  order      Order               @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  menuItemId String
+  menuItem   MenuItem            @relation(fields: [menuItemId], references: [id])
+  modifiers  OrderItemModifier[]
+}
+
+model OrderItemModifier {
+  id               String         @id @default(cuid())
+  orderItemId      String
+  orderItem        OrderItem      @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+  modifierOptionId String
+  modifierOption   ModifierOption @relation(fields: [modifierOptionId], references: [id])
+  priceAdjustment  Int
+}
+
+enum OrderStatus {
+  RECEIVED
+  PREPARING
+  READY
+}

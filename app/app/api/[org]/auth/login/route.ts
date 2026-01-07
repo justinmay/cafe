@@ -38,7 +38,7 @@ export async function POST(
 
     // Find user with matching username who is a member of this org
     const membership = organization.members.find(
-      (m) => m.user.username === username
+      (m: { user: { username: string } }) => m.user.username === username
     )
 
     if (!membership) {

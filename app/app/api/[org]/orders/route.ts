@@ -96,8 +96,8 @@ export async function POST(
       }),
     ])
 
-    const menuItemMap = new Map(menuItems.map((m) => [m.id, m]))
-    const optionMap = new Map(modifierOptions.map((o) => [o.id, o]))
+    const menuItemMap = new Map(menuItems.map((m) => [m.id, m] as const))
+    const optionMap = new Map(modifierOptions.map((o) => [o.id, o] as const))
 
     // Validate all items exist and belong to this org
     for (const item of items) {

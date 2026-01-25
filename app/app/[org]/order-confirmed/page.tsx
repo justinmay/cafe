@@ -13,7 +13,7 @@ function OrderConfirmedContent() {
   const router = useRouter()
   const org = params.org as string
   const orderNumber = searchParams.get("orderNumber")
-  const [countdown, setCountdown] = useState(5)
+  const [countdown, setCountdown] = useState(10)
 
   useEffect(() => {
     if (countdown <= 0) {

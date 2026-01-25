@@ -8,6 +8,7 @@ const createMenuItemSchema = z.object({
   description: z.string().max(500).nullable().optional(),
   image: z.string().url().nullable().optional(),
   price: z.number().int().min(1),
+  allergens: z.string().max(500).nullable().optional(),
   available: z.boolean().optional().default(true),
   modifiers: z.array(
     z.object({
@@ -77,6 +78,7 @@ export async function POST(
         description: data.description,
         image: data.image,
         price: data.price,
+        allergens: data.allergens,
         available: data.available,
         organizationId: session.organizationId,
         modifiers: {

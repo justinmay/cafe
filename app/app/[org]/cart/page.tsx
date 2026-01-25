@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter, useParams } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
@@ -12,12 +12,32 @@ import { useCart } from "@/hooks/use-cart"
 import { formatPrice } from "@/lib/format"
 import { toast } from "sonner"
 
+const DEFAULT_CHECKOUT_MESSAGE = "Payment via Venmo only. You'll pay after placing your order."
+
 export default function CartPage() {
   const router = useRouter()
   const params = useParams()
   const org = params.org as string
   const cart = useCart(org)
   const [submitting, setSubmitting] = useState(false)
+  const [checkoutMessage, setCheckoutMessage] = useState(DEFAULT_CHECKOUT_MESSAGE)
+
+  useEffect(() => {
+    async function fetchCheckoutMessage() {
+      try {
+        const res = await fetch(`/api/${org}/menu`)
+        if (res.ok) {
+          const data = await res.json()
+          if (data.organization?.checkoutMessage) {
+            setCheckoutMessage(data.organization.checkoutMessage)
+          }
+        }
+      } catch {
+        // Use default message on error
+      }
+    }
+    fetchCheckoutMessage()
+  }, [org])
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -162,7 +182,7 @@ export default function CartPage() {
           <Card className="bg-muted/50">
             <CardContent className="py-4">
               <p className="text-sm text-muted-foreground text-center">
-                Payment via Venmo only. You&apos;ll pay after placing your order.
+                {checkoutMessage}
               </p>
             </CardContent>
           </Card>

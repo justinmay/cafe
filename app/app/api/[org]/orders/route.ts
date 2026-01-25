@@ -185,3 +185,29 @@ export async function POST(
     )
   }
 }
+
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: Promise<{ org: string }> }
+) {
+  const { org: orgSlug } = await params
+  const session = await getSession()
+
+  if (!session || session.organizationSlug !== orgSlug) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  }
+
+  try {
+    await prisma.order.deleteMany({
+      where: { organizationId: session.organizationId },
+    })
+
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    console.error("Clear orders error:", error)
+    return NextResponse.json(
+      { error: "Failed to clear orders" },
+      { status: 500 }
+    )
+  }
+}

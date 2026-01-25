@@ -5,6 +5,7 @@ import { useParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -37,6 +38,7 @@ interface MenuItem {
   description: string | null
   image: string | null
   price: number
+  allergens: string | null
   available: boolean
   modifiers: Modifier[]
 }
@@ -55,12 +57,65 @@ export default function AdminPage() {
   const [description, setDescription] = useState("")
   const [image, setImage] = useState("")
   const [price, setPrice] = useState("")
+  const [allergens, setAllergens] = useState("")
   const [available, setAvailable] = useState(true)
   const [modifiers, setModifiers] = useState<Modifier[]>([])
 
+  // Settings state
+  const [checkoutMessage, setCheckoutMessage] = useState("")
+  const [savingSettings, setSavingSettings] = useState(false)
+  const [clearing, setClearing] = useState(false)
+
   useEffect(() => {
     fetchMenuItems()
+    fetchSettings()
   }, [org])
+
+  async function fetchSettings() {
+    try {
+      const res = await fetch(`/api/${org}/admin/settings`)
+      if (res.ok) {
+        const data = await res.json()
+        setCheckoutMessage(data.checkoutMessage || "")
+      }
+    } catch {
+      // Settings fetch failed, use defaults
+    }
+  }
+
+  async function handleSaveSettings() {
+    setSavingSettings(true)
+    try {
+      const res = await fetch(`/api/${org}/admin/settings`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ checkoutMessage: checkoutMessage.trim() || null }),
+      })
+      if (!res.ok) throw new Error("Failed to save settings")
+      toast.success("Settings saved")
+    } catch {
+      toast.error("Failed to save settings")
+    } finally {
+      setSavingSettings(false)
+    }
+  }
+
+  async function clearAllOrders() {
+    if (!confirm("Are you sure you want to delete ALL orders? This cannot be undone.")) {
+      return
+    }
+
+    setClearing(true)
+    try {
+      const res = await fetch(`/api/${org}/orders`, { method: "DELETE" })
+      if (!res.ok) throw new Error("Failed to clear orders")
+      toast.success("All orders cleared")
+    } catch {
+      toast.error("Failed to clear orders")
+    } finally {
+      setClearing(false)
+    }
+  }
 
   async function fetchMenuItems() {
     try {
@@ -82,6 +137,7 @@ export default function AdminPage() {
     setDescription("")
     setImage("")
     setPrice("")
+    setAllergens("")
     setAvailable(true)
     setModifiers([])
     setDialogOpen(true)
@@ -93,6 +149,7 @@ export default function AdminPage() {
     setDescription(item.description || "")
     setImage(item.image || "")
     setPrice((item.price / 100).toFixed(2))
+    setAllergens(item.allergens || "")
     setAvailable(item.available)
     setModifiers(item.modifiers.map((m) => ({ ...m, options: [...m.options] })))
     setDialogOpen(true)
@@ -172,6 +229,7 @@ export default function AdminPage() {
         description: description.trim() || null,
         image: image.trim() || null,
         price: priceInCents,
+        allergens: allergens.trim() || null,
         available,
         modifiers: modifiers
           .filter((m) => m.name.trim())
@@ -268,8 +326,50 @@ export default function AdminPage() {
 
   return (
     <div className="p-4">
-      <div className="mx-auto max-w-4xl">
-        <div className="flex justify-between items-center mb-6">
+      <div className="mx-auto max-w-4xl space-y-8">
+        <Card>
+          <CardHeader>
+            <CardTitle>Checkout Settings</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="checkoutMessage">Checkout Message</Label>
+              <Textarea
+                id="checkoutMessage"
+                value={checkoutMessage}
+                onChange={(e) => setCheckoutMessage(e.target.value)}
+                placeholder="Payment via Venmo only. You'll pay after placing your order."
+                rows={3}
+              />
+              <p className="text-sm text-muted-foreground">
+                This message will be shown to customers at checkout. Leave blank for the default Venmo message.
+              </p>
+            </div>
+            <Button onClick={handleSaveSettings} disabled={savingSettings}>
+              {savingSettings ? "Saving..." : "Save Settings"}
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Order Management</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Clear all orders from the system. This action cannot be undone.
+            </p>
+            <Button
+              variant="destructive"
+              onClick={clearAllOrders}
+              disabled={clearing}
+            >
+              {clearing ? "Clearing..." : "Clear All Orders"}
+            </Button>
+          </CardContent>
+        </Card>
+
+        <div className="flex justify-between items-center">
           <h2 className="text-2xl font-bold">Menu Items</h2>
           <Button onClick={openCreateDialog}>Add Item</Button>
         </div>
@@ -392,20 +492,8 @@ export default function AdminPage() {
                 id="image"
                 value={image}
                 onChange={(e) => setImage(e.target.value)}
-                placeholder="https://..."
+                placeholder="https://example.com/image.jpg"
               />
-              {image && (
-                <div className="w-32 h-32 mt-2">
-                  <img
-                    src={image}
-                    alt="Preview"
-                    className="w-full h-full object-cover rounded border"
-                    onError={(e) => {
-                      e.currentTarget.style.display = 'none'
-                    }}
-                  />
-                </div>
-              )}
             </div>
 
             <div className="space-y-2">
@@ -418,6 +506,16 @@ export default function AdminPage() {
                 type="number"
                 step="0.01"
                 min="0"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="allergens">Allergens (optional)</Label>
+              <Input
+                id="allergens"
+                value={allergens}
+                onChange={(e) => setAllergens(e.target.value)}
+                placeholder="e.g., Contains nuts, dairy, gluten"
               />
             </div>
 

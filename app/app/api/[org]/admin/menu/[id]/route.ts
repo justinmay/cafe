@@ -8,6 +8,7 @@ const updateMenuItemSchema = z.object({
   description: z.string().max(500).nullable().optional(),
   image: z.string().url().nullable().optional(),
   price: z.number().int().min(1).optional(),
+  allergens: z.string().max(500).nullable().optional(),
   available: z.boolean().optional(),
   modifiers: z.array(
     z.object({
@@ -68,6 +69,7 @@ export async function PATCH(
         ...(data.description !== undefined && { description: data.description }),
         ...(data.image !== undefined && { image: data.image }),
         ...(data.price !== undefined && { price: data.price }),
+        ...(data.allergens !== undefined && { allergens: data.allergens }),
         ...(data.available !== undefined && { available: data.available }),
         ...(data.modifiers !== undefined && {
           modifiers: {

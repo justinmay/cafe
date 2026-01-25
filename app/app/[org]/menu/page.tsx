@@ -38,8 +38,11 @@ interface MenuItem {
   description: string | null
   image: string | null
   price: number
+  allergens: string | null
   modifiers: Modifier[]
 }
+
+const DEFAULT_CHECKOUT_MESSAGE = "Payment via Venmo only. You'll pay after placing your order."
 
 export default function MenuPage() {
   const params = useParams()
@@ -54,6 +57,7 @@ export default function MenuPage() {
   >({})
   const [cartOpen, setCartOpen] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [checkoutMessage, setCheckoutMessage] = useState(DEFAULT_CHECKOUT_MESSAGE)
   const cart = useCart(org)
 
   useEffect(() => {
@@ -65,6 +69,9 @@ export default function MenuPage() {
       .then((data) => {
         setOrgName(data.organization?.name || "Menu")
         setMenuItems(Array.isArray(data.menuItems) ? data.menuItems : [])
+        if (data.organization?.checkoutMessage) {
+          setCheckoutMessage(data.organization.checkoutMessage)
+        }
         setLoading(false)
       })
       .catch(() => {
@@ -222,6 +229,11 @@ export default function MenuPage() {
                       {item.description}
                     </p>
                   )}
+                  {item.allergens && (
+                    <p className="text-amber-600 dark:text-amber-500 text-sm mb-2">
+                      {item.allergens}
+                    </p>
+                  )}
                   {item.modifiers.length > 0 && (
                     <div className="flex gap-2 flex-wrap">
                       {item.modifiers.map((mod) => (
@@ -272,6 +284,11 @@ export default function MenuPage() {
                 {selectedItem.description && (
                   <p className="text-muted-foreground">
                     {selectedItem.description}
+                  </p>
+                )}
+                {selectedItem.allergens && (
+                  <p className="text-amber-600 dark:text-amber-500 text-sm">
+                    {selectedItem.allergens}
                   </p>
                 )}
               </DialogHeader>
@@ -396,6 +413,12 @@ export default function MenuPage() {
                     placeholder="Enter your name"
                     required
                   />
+                </div>
+
+                <div className="bg-muted/50 rounded-lg p-3">
+                  <p className="text-sm text-muted-foreground text-center">
+                    {checkoutMessage}
+                  </p>
                 </div>
 
                 <Button

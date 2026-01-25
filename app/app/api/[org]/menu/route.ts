@@ -36,7 +36,7 @@ export async function GET(
     })
 
     return NextResponse.json({
-      organization: { name: organization.name },
+      organization: { name: organization.name, checkoutMessage: organization.checkoutMessage },
       menuItems,
     })
   } catch (error) {

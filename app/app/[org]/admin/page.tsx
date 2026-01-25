@@ -216,8 +216,8 @@ export default function AdminPage() {
     }
 
     const priceInCents = parsePriceToCents(price)
-    if (priceInCents <= 0) {
-      toast.error("Price must be greater than 0")
+    if (priceInCents < 0) {
+      toast.error("Price cannot be negative")
       return
     }
 

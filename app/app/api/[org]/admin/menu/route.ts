@@ -7,7 +7,7 @@ const createMenuItemSchema = z.object({
   name: z.string().min(1).max(100),
   description: z.string().max(500).nullable().optional(),
   image: z.string().url().nullable().optional(),
-  price: z.number().int().min(1),
+  price: z.number().int().min(0),
   allergens: z.string().max(500).nullable().optional(),
   available: z.boolean().optional().default(true),
   modifiers: z.array(

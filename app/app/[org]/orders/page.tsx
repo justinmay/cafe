@@ -10,6 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { formatPrice } from "@/lib/format"
 import { toast } from "sonner"
+import { CircleCheckIcon, CircleIcon, Loader2Icon } from "lucide-react"
 
 interface OrderItemModifier {
   id: string
@@ -23,6 +24,7 @@ interface OrderItem {
   id: string
   quantity: number
   unitPrice: number
+  completed: boolean
   menuItem: {
     name: string
   }
@@ -58,6 +60,7 @@ export default function OrdersPage() {
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<string>("active")
   const [updating, setUpdating] = useState<string | null>(null)
+  const [updatingItem, setUpdatingItem] = useState<string | null>(null)
   const [pollStatus, setPollStatus] = useState<"ok" | "error">("ok")
 
   const fetchOrders = useCallback(async () => {
@@ -96,7 +99,24 @@ export default function OrdersPage() {
 
       setOrders((prev) =>
         prev.map((order) =>
-          order.id === orderId ? { ...order, status } : order
+          order.id === orderId
+            ? {
+                ...order,
+                status,
+                items:
+                  status === "READY"
+                    ? order.items.map((item) => ({
+                        ...item,
+                        completed: true,
+                      }))
+                    : status === "RECEIVED"
+                      ? order.items.map((item) => ({
+                          ...item,
+                          completed: false,
+                        }))
+                      : order.items,
+              }
+            : order
         )
       )
       toast.success(`Order marked as ${STATUS_LABELS[status]}`)
@@ -104,6 +124,53 @@ export default function OrdersPage() {
       toast.error("Failed to update order status")
     } finally {
       setUpdating(null)
+    }
+  }
+
+  async function toggleItemCompletion(orderId: string, item: OrderItem) {
+    const completed = !item.completed
+    setUpdatingItem(item.id)
+
+    try {
+      const res = await fetch(
+        `/api/${org}/orders/${orderId}/items/${item.id}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ completed }),
+        }
+      )
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => null)
+        throw new Error(data?.error || "Failed to update item")
+      }
+
+      setOrders((prev) =>
+        prev.map((order) =>
+          order.id === orderId
+            ? {
+                ...order,
+                items: order.items.map((orderItem) =>
+                  orderItem.id === item.id
+                    ? { ...orderItem, completed }
+                    : orderItem
+                ),
+              }
+            : order
+        )
+      )
+      toast.success(
+        completed
+          ? `${item.menuItem.name} crossed off`
+          : `${item.menuItem.name} reopened`
+      )
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to update item"
+      )
+    } finally {
+      setUpdatingItem(null)
     }
   }
 
@@ -179,22 +246,77 @@ export default function OrdersPage() {
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="space-y-1 text-sm">
+                  <div className="space-y-2 text-sm">
                     {order.items.map((item) => (
-                      <div key={item.id} className="flex justify-between">
-                        <span>
-                          {item.quantity}x {item.menuItem.name}
+                      <div
+                        key={item.id}
+                        className={`flex items-start gap-2 rounded-lg border p-2.5 transition-colors ${
+                          item.completed
+                            ? "border-green-200 bg-green-50/80 dark:border-green-900 dark:bg-green-950/30"
+                            : "bg-background"
+                        }`}
+                      >
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          className={`-ml-1 -mt-0.5 ${
+                            item.completed
+                              ? "text-green-600 hover:text-green-700"
+                              : "text-muted-foreground hover:text-foreground"
+                          }`}
+                          onClick={() =>
+                            toggleItemCompletion(order.id, item)
+                          }
+                          disabled={
+                            order.status !== "PREPARING" ||
+                            updatingItem === item.id
+                          }
+                          aria-label={
+                            item.completed
+                              ? `Reopen ${item.menuItem.name}`
+                              : `Cross off ${item.menuItem.name}`
+                          }
+                          aria-pressed={item.completed}
+                        >
+                          {updatingItem === item.id ? (
+                            <Loader2Icon className="size-5 animate-spin" />
+                          ) : item.completed ? (
+                            <CircleCheckIcon className="size-5" />
+                          ) : (
+                            <CircleIcon className="size-5" />
+                          )}
+                        </Button>
+                        <div className="min-w-0 flex-1">
+                          <p
+                            className={
+                              item.completed
+                                ? "text-muted-foreground line-through"
+                                : "font-medium"
+                            }
+                          >
+                            {item.quantity}x {item.menuItem.name}
+                          </p>
                           {item.modifiers.length > 0 && (
-                            <span className="text-muted-foreground ml-1">
-                              ({item.modifiers
+                            <p
+                              className={`text-muted-foreground ${
+                                item.completed ? "line-through" : ""
+                              }`}
+                            >
+                              {item.modifiers
                                 .map((m) => m.modifierOption.name)
                                 .join(", ")}
-                              )
-                            </span>
+                            </p>
                           )}
-                        </span>
+                        </div>
                       </div>
                     ))}
+                    {order.status === "RECEIVED" && (
+                      <p className="pt-1 text-xs text-muted-foreground">
+                        Start preparing this order to check off individual
+                        items.
+                      </p>
+                    )}
                   </div>
 
                   <div className="flex justify-between font-medium">

@@ -99,6 +99,7 @@ model OrderItem {
   id         String              @id @default(cuid())
   quantity   Int
   unitPrice  Int
+  completed  Boolean             @default(false)
   orderId    String
   order      Order               @relation(fields: [orderId], references: [id], onDelete: Cascade)
   menuItemId String

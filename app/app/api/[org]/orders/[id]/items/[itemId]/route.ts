@@ -57,17 +57,63 @@ export async function PATCH(
       )
     }
 
-    const orderItem = await prisma.orderItem.update({
-      where: { id: itemId },
-      data: { completed },
+    const result = await prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`
+        SELECT "id"
+        FROM "Order"
+        WHERE "id" = ${orderId}
+        FOR UPDATE
+      `
+
+      const order = await tx.order.findUnique({
+        where: { id: orderId },
+        select: { status: true },
+      })
+
+      if (order?.status !== "PREPARING") {
+        throw new Error("ORDER_NOT_PREPARING")
+      }
+
+      const orderItem = await tx.orderItem.update({
+        where: { id: itemId },
+        data: { completed },
+      })
+
+      let orderStatus: "PREPARING" | "READY" = order.status
+
+      if (completed) {
+        const remainingItems = await tx.orderItem.count({
+          where: {
+            orderId,
+            completed: false,
+          },
+        })
+
+        if (remainingItems === 0) {
+          await tx.order.update({
+            where: { id: orderId },
+            data: { status: "READY" },
+          })
+          orderStatus = "READY"
+        }
+      }
+
+      return { orderItem, orderStatus }
     })
 
-    return NextResponse.json(orderItem)
+    return NextResponse.json(result)
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { error: "Invalid item status" },
         { status: 400 }
+      )
+    }
+
+    if (error instanceof Error && error.message === "ORDER_NOT_PREPARING") {
+      return NextResponse.json(
+        { error: "Start preparing the order before updating its items" },
+        { status: 409 }
       )
     }
 

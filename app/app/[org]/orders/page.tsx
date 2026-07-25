@@ -184,11 +184,15 @@ export default function OrdersPage() {
         throw new Error(data?.error || "Failed to update item")
       }
 
+      const data = await res.json()
+      const orderReady = data.orderStatus === "READY"
+
       setOrders((prev) =>
         prev.map((order) =>
           order.id === orderId
             ? {
                 ...order,
+                status: orderReady ? "READY" : order.status,
                 items: order.items.map((orderItem) =>
                   orderItem.id === item.id
                     ? { ...orderItem, completed }
@@ -199,7 +203,9 @@ export default function OrdersPage() {
         )
       )
       toast.success(
-        completed
+        orderReady
+          ? `${item.menuItem.name} crossed off — order ready`
+          : completed
           ? `${item.menuItem.name} crossed off`
           : `${item.menuItem.name} reopened`
       )

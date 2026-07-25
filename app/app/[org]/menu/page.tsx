@@ -19,7 +19,6 @@ import { useCart, type CartItemModifier } from "@/hooks/use-cart"
 import { formatPrice } from "@/lib/format"
 import { toast } from "sonner"
 import {
-  ChevronRight,
   Coffee,
   Minus,
   Plus,
@@ -312,13 +311,6 @@ export default function MenuPage() {
                         {item.allergens}
                       </p>
                     )}
-                    <div className="mt-4 flex items-center gap-1 text-sm font-semibold text-white">
-                      Customize
-                      <ChevronRight
-                        className="size-4 transition-transform group-hover:translate-x-1"
-                        aria-hidden="true"
-                      />
-                    </div>
                   </div>
                 </Card>
               ))}

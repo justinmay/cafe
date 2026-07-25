@@ -58,6 +58,7 @@ export default function MenuPage() {
   const [cartOpen, setCartOpen] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [checkoutMessage, setCheckoutMessage] = useState(DEFAULT_CHECKOUT_MESSAGE)
+  const [hidePricesUntilCart, setHidePricesUntilCart] = useState(false)
   const cart = useCart(org)
 
   useEffect(() => {
@@ -72,6 +73,7 @@ export default function MenuPage() {
         if (data.organization?.checkoutMessage) {
           setCheckoutMessage(data.organization.checkoutMessage)
         }
+        setHidePricesUntilCart(data.organization?.hidePricesUntilCart === true)
         setLoading(false)
       })
       .catch(() => {
@@ -218,9 +220,11 @@ export default function MenuPage() {
                 <CardHeader className="pb-2">
                   <div className="flex justify-between items-start">
                     <CardTitle className="text-xl">{item.name}</CardTitle>
-                    <span className="font-semibold">
-                      {formatPrice(item.price)}
-                    </span>
+                    {!hidePricesUntilCart && (
+                      <span className="font-semibold">
+                        {formatPrice(item.price)}
+                      </span>
+                    )}
                   </div>
                 </CardHeader>
                 <CardContent>
@@ -258,7 +262,8 @@ export default function MenuPage() {
             size="lg"
             onClick={() => setCartOpen(true)}
           >
-            View Cart ({cartItemCount}) - {formatPrice(cart.getTotal())}
+            View Cart ({cartItemCount})
+            {!hidePricesUntilCart && ` - ${formatPrice(cart.getTotal())}`}
           </Button>
         </div>
       )}
@@ -313,7 +318,7 @@ export default function MenuPage() {
                             }
                           >
                             <span>{option.name}</span>
-                            {option.priceAdjustment !== 0 && (
+                            {!hidePricesUntilCart && option.priceAdjustment !== 0 && (
                               <span className="text-xs opacity-70">
                                 {option.priceAdjustment > 0 ? "+" : ""}
                                 {formatPrice(option.priceAdjustment)}
@@ -329,7 +334,9 @@ export default function MenuPage() {
 
               <DialogFooter>
                 <Button className="w-full h-12" onClick={handleAddToCart}>
-                  Add to Cart - {formatPrice(calculateItemPrice(selectedItem))}
+                  Add to Cart
+                  {!hidePricesUntilCart &&
+                    ` - ${formatPrice(calculateItemPrice(selectedItem))}`}
                 </Button>
               </DialogFooter>
             </>

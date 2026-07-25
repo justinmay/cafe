@@ -42,8 +42,6 @@ interface MenuItem {
   modifiers: Modifier[]
 }
 
-const DEFAULT_CHECKOUT_MESSAGE = "Payment via Venmo only. You'll pay after placing your order."
-
 export default function MenuPage() {
   const params = useParams()
   const router = useRouter()
@@ -57,7 +55,6 @@ export default function MenuPage() {
   >({})
   const [cartOpen, setCartOpen] = useState(false)
   const [submitting, setSubmitting] = useState(false)
-  const [checkoutMessage, setCheckoutMessage] = useState(DEFAULT_CHECKOUT_MESSAGE)
   const [hidePricesUntilCart, setHidePricesUntilCart] = useState(false)
   const cart = useCart(org)
 
@@ -70,9 +67,6 @@ export default function MenuPage() {
       .then((data) => {
         setOrgName(data.organization?.name || "Menu")
         setMenuItems(Array.isArray(data.menuItems) ? data.menuItems : [])
-        if (data.organization?.checkoutMessage) {
-          setCheckoutMessage(data.organization.checkoutMessage)
-        }
         setHidePricesUntilCart(data.organization?.hidePricesUntilCart === true)
         setLoading(false)
       })
@@ -420,12 +414,6 @@ export default function MenuPage() {
                     placeholder="Enter your name"
                     required
                   />
-                </div>
-
-                <div className="bg-muted/50 rounded-lg p-3">
-                  <p className="text-sm text-muted-foreground text-center">
-                    {checkoutMessage}
-                  </p>
                 </div>
 
                 <Button

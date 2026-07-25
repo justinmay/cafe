@@ -3,25 +3,61 @@ import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { getSession } from "@/lib/auth"
 
-const createMenuItemSchema = z.object({
-  name: z.string().min(1).max(100),
-  description: z.string().max(500).nullable().optional(),
-  image: z.string().url().nullable().optional(),
-  price: z.number().int().min(0),
-  allergens: z.string().max(500).nullable().optional(),
-  available: z.boolean().optional().default(true),
-  modifiers: z.array(
-    z.object({
-      name: z.string().min(1).max(50),
-      options: z.array(
+const createMenuItemSchema = z
+  .object({
+    name: z.string().min(1).max(100),
+    description: z.string().max(500).nullable().optional(),
+    image: z.string().url().nullable().optional(),
+    price: z.number().int().min(0),
+    suggestedMinPrice: z.number().int().min(0).nullable().optional(),
+    suggestedMaxPrice: z.number().int().min(0).nullable().optional(),
+    useSuggestedPriceRange: z.boolean().optional().default(false),
+    allergens: z.string().max(500).nullable().optional(),
+    available: z.boolean().optional().default(true),
+    modifiers: z
+      .array(
         z.object({
           name: z.string().min(1).max(50),
-          priceAdjustment: z.number().int(),
+          options: z.array(
+            z.object({
+              name: z.string().min(1).max(50),
+              priceAdjustment: z.number().int(),
+            })
+          ),
         })
-      ),
-    })
-  ).optional().default([]),
-})
+      )
+      .optional()
+      .default([]),
+  })
+  .superRefine((data, ctx) => {
+    if (!data.useSuggestedPriceRange) return
+
+    if (data.suggestedMinPrice == null) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["suggestedMinPrice"],
+        message: "Suggested minimum price is required",
+      })
+    }
+    if (data.suggestedMaxPrice == null) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["suggestedMaxPrice"],
+        message: "Suggested maximum price is required",
+      })
+    }
+    if (
+      data.suggestedMinPrice != null &&
+      data.suggestedMaxPrice != null &&
+      data.suggestedMaxPrice < data.suggestedMinPrice
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["suggestedMaxPrice"],
+        message: "Suggested maximum price must be at least the minimum",
+      })
+    }
+  })
 
 export async function GET(
   req: NextRequest,
@@ -78,6 +114,9 @@ export async function POST(
         description: data.description,
         image: data.image,
         price: data.price,
+        suggestedMinPrice: data.suggestedMinPrice,
+        suggestedMaxPrice: data.suggestedMaxPrice,
+        useSuggestedPriceRange: data.useSuggestedPriceRange,
         allergens: data.allergens,
         available: data.available,
         organizationId: session.organizationId,

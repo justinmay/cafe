@@ -3,27 +3,62 @@ import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { getSession } from "@/lib/auth"
 
-const updateMenuItemSchema = z.object({
-  name: z.string().min(1).max(100).optional(),
-  description: z.string().max(500).nullable().optional(),
-  image: z.string().url().nullable().optional(),
-  price: z.number().int().min(0).optional(),
-  allergens: z.string().max(500).nullable().optional(),
-  available: z.boolean().optional(),
-  modifiers: z.array(
-    z.object({
-      id: z.string().optional(),
-      name: z.string().min(1).max(50),
-      options: z.array(
+const updateMenuItemSchema = z
+  .object({
+    name: z.string().min(1).max(100).optional(),
+    description: z.string().max(500).nullable().optional(),
+    image: z.string().url().nullable().optional(),
+    price: z.number().int().min(0).optional(),
+    suggestedMinPrice: z.number().int().min(0).nullable().optional(),
+    suggestedMaxPrice: z.number().int().min(0).nullable().optional(),
+    useSuggestedPriceRange: z.boolean().optional(),
+    allergens: z.string().max(500).nullable().optional(),
+    available: z.boolean().optional(),
+    modifiers: z
+      .array(
         z.object({
           id: z.string().optional(),
           name: z.string().min(1).max(50),
-          priceAdjustment: z.number().int(),
+          options: z.array(
+            z.object({
+              id: z.string().optional(),
+              name: z.string().min(1).max(50),
+              priceAdjustment: z.number().int(),
+            })
+          ),
         })
-      ),
-    })
-  ).optional(),
-})
+      )
+      .optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (!data.useSuggestedPriceRange) return
+
+    if (data.suggestedMinPrice == null) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["suggestedMinPrice"],
+        message: "Suggested minimum price is required",
+      })
+    }
+    if (data.suggestedMaxPrice == null) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["suggestedMaxPrice"],
+        message: "Suggested maximum price is required",
+      })
+    }
+    if (
+      data.suggestedMinPrice != null &&
+      data.suggestedMaxPrice != null &&
+      data.suggestedMaxPrice < data.suggestedMinPrice
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["suggestedMaxPrice"],
+        message: "Suggested maximum price must be at least the minimum",
+      })
+    }
+  })
 
 export async function PATCH(
   req: NextRequest,
@@ -69,6 +104,15 @@ export async function PATCH(
         ...(data.description !== undefined && { description: data.description }),
         ...(data.image !== undefined && { image: data.image }),
         ...(data.price !== undefined && { price: data.price }),
+        ...(data.suggestedMinPrice !== undefined && {
+          suggestedMinPrice: data.suggestedMinPrice,
+        }),
+        ...(data.suggestedMaxPrice !== undefined && {
+          suggestedMaxPrice: data.suggestedMaxPrice,
+        }),
+        ...(data.useSuggestedPriceRange !== undefined && {
+          useSuggestedPriceRange: data.useSuggestedPriceRange,
+        }),
         ...(data.allergens !== undefined && { allergens: data.allergens }),
         ...(data.available !== undefined && { available: data.available }),
         ...(data.modifiers !== undefined && {

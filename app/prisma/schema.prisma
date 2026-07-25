@@ -8,11 +8,11 @@ datasource db {
 }
 
 model User {
-  id             String               @id @default(cuid())
-  username       String               @unique
-  passwordHash   String
-  createdAt      DateTime             @default(now())
-  memberships    OrganizationMember[]
+  id           String               @id @default(cuid())
+  username     String               @unique
+  passwordHash String
+  createdAt    DateTime             @default(now())
+  memberships  OrganizationMember[]
 }
 
 model OrganizationMember {
@@ -43,19 +43,22 @@ model Organization {
 }
 
 model MenuItem {
-  id             String       @id @default(cuid())
-  name           String
-  description    String?
-  image          String?
-  price          Int
-  allergens      String?
-  available      Boolean      @default(true)
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
-  organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  modifiers      Modifier[]
-  orderItems     OrderItem[]
+  id                     String       @id @default(cuid())
+  name                   String
+  description            String?
+  image                  String?
+  price                  Int
+  suggestedMinPrice      Int?
+  suggestedMaxPrice      Int?
+  useSuggestedPriceRange Boolean      @default(false)
+  allergens              String?
+  available              Boolean      @default(true)
+  createdAt              DateTime     @default(now())
+  updatedAt              DateTime     @updatedAt
+  organizationId         String
+  organization           Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  modifiers              Modifier[]
+  orderItems             OrderItem[]
 
   @@index([organizationId])
 }

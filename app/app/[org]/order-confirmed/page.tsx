@@ -2,10 +2,12 @@
 
 import { useSearchParams, useParams, useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
-import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Suspense } from "react"
+
+const DEFAULT_CHECKOUT_MESSAGE =
+  "Payment via Venmo only. You'll pay after placing your order."
 
 function OrderConfirmedContent() {
   const searchParams = useSearchParams()
@@ -14,6 +16,25 @@ function OrderConfirmedContent() {
   const org = params.org as string
   const orderNumber = searchParams.get("orderNumber")
   const [countdown, setCountdown] = useState(10)
+  const [checkoutMessage, setCheckoutMessage] = useState(
+    DEFAULT_CHECKOUT_MESSAGE
+  )
+
+  useEffect(() => {
+    fetch(`/api/${org}/menu`)
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed to load checkout message")
+        return res.json()
+      })
+      .then((data) => {
+        if (data.organization?.checkoutMessage) {
+          setCheckoutMessage(data.organization.checkoutMessage)
+        }
+      })
+      .catch(() => {
+        // Use the default checkout message on error
+      })
+  }, [org])
 
   useEffect(() => {
     if (countdown <= 0) {
@@ -84,9 +105,12 @@ function OrderConfirmedContent() {
             <p className="text-6xl font-bold animate-bounce-in">{orderNumber || "—"}</p>
           </div>
 
-          <div className="bg-muted/50 rounded-lg p-4">
-            <p className="text-sm text-muted-foreground">
-              Please pay via Venmo and show this number when your order is ready.
+          <div className="rounded-xl border-2 border-primary/40 bg-primary/10 p-5 text-left shadow-sm">
+            <p className="mb-2 text-xs font-bold uppercase tracking-wider text-primary">
+              Checkout note
+            </p>
+            <p className="text-base font-semibold leading-relaxed text-foreground">
+              {checkoutMessage}
             </p>
           </div>
 
@@ -94,11 +118,13 @@ function OrderConfirmedContent() {
             Returning to menu in {countdown} second{countdown !== 1 ? "s" : ""}...
           </div>
 
-          <Link href={`/${org}/menu`}>
-            <Button variant="outline" className="w-full">
-              Place Another Order
-            </Button>
-          </Link>
+          <Button
+            variant="outline"
+            className="w-full"
+            onClick={() => router.push(`/${org}/menu`)}
+          >
+            Skip
+          </Button>
         </CardContent>
       </Card>
     </div>

@@ -30,15 +30,16 @@ model OrganizationMember {
 }
 
 model Organization {
-  id              String               @id @default(cuid())
-  slug            String               @unique
-  name            String
-  checkoutMessage String?
-  createdAt       DateTime             @default(now())
-  updatedAt       DateTime             @updatedAt
-  members         OrganizationMember[]
-  menuItems       MenuItem[]
-  orders          Order[]
+  id                  String               @id @default(cuid())
+  slug                String               @unique
+  name                String
+  checkoutMessage     String?
+  hidePricesUntilCart Boolean              @default(false)
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  members             OrganizationMember[]
+  menuItems           MenuItem[]
+  orders              Order[]
 }
 
 model MenuItem {

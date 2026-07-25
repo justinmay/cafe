@@ -42,8 +42,6 @@ interface MenuItem {
   modifiers: Modifier[]
 }
 
-const DEFAULT_CHECKOUT_MESSAGE = "Payment via Venmo only. You'll pay after placing your order."
-
 export default function MenuPage() {
   const params = useParams()
   const router = useRouter()
@@ -55,9 +53,10 @@ export default function MenuPage() {
   const [selectedModifiers, setSelectedModifiers] = useState<
     Record<string, ModifierOption>
   >({})
+  const [selectedQuantity, setSelectedQuantity] = useState(1)
   const [cartOpen, setCartOpen] = useState(false)
   const [submitting, setSubmitting] = useState(false)
-  const [checkoutMessage, setCheckoutMessage] = useState(DEFAULT_CHECKOUT_MESSAGE)
+  const [hidePricesUntilCart, setHidePricesUntilCart] = useState(false)
   const cart = useCart(org)
 
   useEffect(() => {
@@ -69,9 +68,7 @@ export default function MenuPage() {
       .then((data) => {
         setOrgName(data.organization?.name || "Menu")
         setMenuItems(Array.isArray(data.menuItems) ? data.menuItems : [])
-        if (data.organization?.checkoutMessage) {
-          setCheckoutMessage(data.organization.checkoutMessage)
-        }
+        setHidePricesUntilCart(data.organization?.hidePricesUntilCart === true)
         setLoading(false)
       })
       .catch(() => {
@@ -86,6 +83,7 @@ export default function MenuPage() {
   function openItemDialog(item: MenuItem) {
     setSelectedItem(item)
     setSelectedModifiers({})
+    setSelectedQuantity(1)
   }
 
   function handleModifierSelect(modifierId: string, option: ModifierOption) {
@@ -110,13 +108,18 @@ export default function MenuPage() {
       menuItemId: selectedItem.id,
       name: selectedItem.name,
       basePrice: selectedItem.price,
-      quantity: 1,
+      quantity: selectedQuantity,
       modifiers,
     })
 
-    toast.success(`Added ${selectedItem.name} to cart`)
+    toast.success(
+      selectedQuantity === 1
+        ? `Added ${selectedItem.name} to cart`
+        : `Added ${selectedQuantity} × ${selectedItem.name} to cart`
+    )
     setSelectedItem(null)
     setSelectedModifiers({})
+    setSelectedQuantity(1)
   }
 
   function calculateItemPrice(item: MenuItem) {
@@ -218,9 +221,11 @@ export default function MenuPage() {
                 <CardHeader className="pb-2">
                   <div className="flex justify-between items-start">
                     <CardTitle className="text-xl">{item.name}</CardTitle>
-                    <span className="font-semibold">
-                      {formatPrice(item.price)}
-                    </span>
+                    {!hidePricesUntilCart && (
+                      <span className="font-semibold">
+                        {formatPrice(item.price)}
+                      </span>
+                    )}
                   </div>
                 </CardHeader>
                 <CardContent>
@@ -258,7 +263,8 @@ export default function MenuPage() {
             size="lg"
             onClick={() => setCartOpen(true)}
           >
-            View Cart ({cartItemCount}) - {formatPrice(cart.getTotal())}
+            View Cart ({cartItemCount})
+            {!hidePricesUntilCart && ` - ${formatPrice(cart.getTotal())}`}
           </Button>
         </div>
       )}
@@ -313,7 +319,7 @@ export default function MenuPage() {
                             }
                           >
                             <span>{option.name}</span>
-                            {option.priceAdjustment !== 0 && (
+                            {!hidePricesUntilCart && option.priceAdjustment !== 0 && (
                               <span className="text-xs opacity-70">
                                 {option.priceAdjustment > 0 ? "+" : ""}
                                 {formatPrice(option.priceAdjustment)}
@@ -327,9 +333,49 @@ export default function MenuPage() {
                 </div>
               )}
 
+              <div className="flex items-center justify-between rounded-lg border p-3">
+                <span className="font-medium">Quantity</span>
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    aria-label="Decrease quantity"
+                    onClick={() =>
+                      setSelectedQuantity((quantity) =>
+                        Math.max(1, quantity - 1)
+                      )
+                    }
+                    disabled={selectedQuantity <= 1}
+                  >
+                    -
+                  </Button>
+                  <span className="w-8 text-center font-semibold">
+                    {selectedQuantity}
+                  </span>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    aria-label="Increase quantity"
+                    onClick={() =>
+                      setSelectedQuantity((quantity) => quantity + 1)
+                    }
+                  >
+                    +
+                  </Button>
+                </div>
+              </div>
+
               <DialogFooter>
                 <Button className="w-full h-12" onClick={handleAddToCart}>
-                  Add to Cart - {formatPrice(calculateItemPrice(selectedItem))}
+                  {selectedQuantity === 1
+                    ? "Add to Cart"
+                    : `Add ${selectedQuantity} to Cart`}
+                  {!hidePricesUntilCart &&
+                    ` - ${formatPrice(
+                      calculateItemPrice(selectedItem) * selectedQuantity
+                    )}`}
                 </Button>
               </DialogFooter>
             </>
@@ -413,12 +459,6 @@ export default function MenuPage() {
                     placeholder="Enter your name"
                     required
                   />
-                </div>
-
-                <div className="bg-muted/50 rounded-lg p-3">
-                  <p className="text-sm text-muted-foreground text-center">
-                    {checkoutMessage}
-                  </p>
                 </div>
 
                 <Button

@@ -5,6 +5,7 @@ import { getSession } from "@/lib/auth";
 
 const updateSettingsSchema = z.object({
   checkoutMessage: z.string().max(500).nullable().optional(),
+  hidePricesUntilCart: z.boolean().optional(),
 });
 
 export async function GET(
@@ -21,14 +22,17 @@ export async function GET(
   try {
     const organization = await prisma.organization.findUnique({
       where: { id: session.organizationId },
-      select: { checkoutMessage: true },
+      select: {
+        checkoutMessage: true,
+        hidePricesUntilCart: true,
+      },
     });
 
     if (!organization) {
       return NextResponse.json({ error: "Organization not found" }, { status: 404 });
     }
 
-    return NextResponse.json({ checkoutMessage: organization.checkoutMessage });
+    return NextResponse.json(organization);
   } catch (error) {
     console.error("Settings fetch error:", error);
     return NextResponse.json(
@@ -55,11 +59,17 @@ export async function PATCH(
 
     const organization = await prisma.organization.update({
       where: { id: session.organizationId },
-      data: { checkoutMessage: data.checkoutMessage },
-      select: { checkoutMessage: true },
+      data: {
+        checkoutMessage: data.checkoutMessage,
+        hidePricesUntilCart: data.hidePricesUntilCart,
+      },
+      select: {
+        checkoutMessage: true,
+        hidePricesUntilCart: true,
+      },
     });
 
-    return NextResponse.json({ checkoutMessage: organization.checkoutMessage });
+    return NextResponse.json(organization);
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(

@@ -63,6 +63,7 @@ export default function AdminPage() {
 
   // Settings state
   const [checkoutMessage, setCheckoutMessage] = useState("")
+  const [hidePricesUntilCart, setHidePricesUntilCart] = useState(false)
   const [savingSettings, setSavingSettings] = useState(false)
   const [clearing, setClearing] = useState(false)
 
@@ -77,6 +78,7 @@ export default function AdminPage() {
       if (res.ok) {
         const data = await res.json()
         setCheckoutMessage(data.checkoutMessage || "")
+        setHidePricesUntilCart(data.hidePricesUntilCart === true)
       }
     } catch {
       // Settings fetch failed, use defaults
@@ -89,7 +91,10 @@ export default function AdminPage() {
       const res = await fetch(`/api/${org}/admin/settings`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ checkoutMessage: checkoutMessage.trim() || null }),
+        body: JSON.stringify({
+          checkoutMessage: checkoutMessage.trim() || null,
+          hidePricesUntilCart,
+        }),
       })
       if (!res.ok) throw new Error("Failed to save settings")
       toast.success("Settings saved")
@@ -344,6 +349,24 @@ export default function AdminPage() {
               <p className="text-sm text-muted-foreground">
                 This message will be shown to customers at checkout. Leave blank for the default Venmo message.
               </p>
+            </div>
+            <div className="flex items-start gap-3">
+              <input
+                type="checkbox"
+                id="hidePricesUntilCart"
+                checked={hidePricesUntilCart}
+                onChange={(e) => setHidePricesUntilCart(e.target.checked)}
+                className="mt-1 h-4 w-4"
+              />
+              <div className="space-y-1">
+                <Label htmlFor="hidePricesUntilCart">
+                  Hide prices until cart
+                </Label>
+                <p className="text-sm text-muted-foreground">
+                  Hide item and modifier prices while customers browse. The
+                  full amount will still be shown in the cart.
+                </p>
+              </div>
             </div>
             <Button onClick={handleSaveSettings} disabled={savingSettings}>
               {savingSettings ? "Saving..." : "Save Settings"}

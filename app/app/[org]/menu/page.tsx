@@ -19,6 +19,14 @@ import {
 import { useCart, type CartItemModifier } from "@/hooks/use-cart"
 import { formatPrice } from "@/lib/format"
 import { toast } from "sonner"
+import {
+  ChevronRight,
+  Coffee,
+  Minus,
+  Plus,
+  ShoppingBag,
+  Sparkles,
+} from "lucide-react"
 
 interface ModifierOption {
   id: string
@@ -179,12 +187,12 @@ export default function MenuPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen p-4">
-        <div className="mx-auto max-w-2xl">
-          <h1 className="text-3xl font-bold mb-6">Menu</h1>
-          <div className="grid gap-4">
-            {[1, 2, 3].map((i) => (
-              <Skeleton key={i} className="h-32 w-full" />
+      <div className="min-h-screen px-4 py-6 sm:px-6 sm:py-10">
+        <div className="mx-auto max-w-5xl">
+          <Skeleton className="mb-8 h-56 w-full rounded-3xl" />
+          <div className="grid gap-5 sm:grid-cols-2">
+            {[1, 2, 3, 4].map((i) => (
+              <Skeleton key={i} className="h-72 w-full rounded-2xl" />
             ))}
           </div>
         </div>
@@ -193,182 +201,292 @@ export default function MenuPage() {
   }
 
   return (
-    <div className="min-h-screen p-4 pb-24">
+    <div className="min-h-screen px-4 py-5 pb-28 sm:px-6 sm:py-10 sm:pb-32">
       <div className="mx-auto max-w-5xl">
-        <h1 className="text-3xl font-bold mb-6">{orgName}</h1>
+        <header
+          className="relative mb-8 flex min-h-56 overflow-hidden rounded-3xl border border-white/25 bg-cover bg-center shadow-[0_24px_60px_-30px_oklch(0.25_0.05_45_/_0.55)] sm:min-h-72"
+          style={{
+            backgroundImage:
+              "linear-gradient(100deg, rgba(45, 29, 25, 0.9) 0%, rgba(63, 38, 31, 0.65) 50%, rgba(63, 38, 31, 0.18) 100%), url('/cafe.png')",
+          }}
+        >
+          <div className="relative z-10 flex max-w-2xl flex-col justify-end p-6 text-white sm:p-10">
+            <div className="mb-4 flex w-fit items-center gap-2 rounded-full border border-white/25 bg-white/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.16em] backdrop-blur-md">
+              <Sparkles className="size-3.5" aria-hidden="true" />
+              Today&apos;s menu
+            </div>
+            <h1 className="font-display text-4xl font-semibold leading-none tracking-tight sm:text-6xl">
+              {orgName}
+            </h1>
+            <p className="mt-4 max-w-lg text-sm leading-relaxed text-white/80 sm:text-base">
+              Made in small batches. Pick a favorite and make it yours.
+            </p>
+          </div>
+        </header>
 
         {menuItems.length === 0 ? (
-          <p className="text-muted-foreground text-center py-8">
-            No items available
-          </p>
-        ) : (
-          <div className="grid gap-4 sm:grid-cols-2">
-            {menuItems.map((item) => (
-              <Card
-                key={item.id}
-                className="cursor-pointer hover:bg-accent/50 transition-colors overflow-hidden"
-                onClick={() => openItemDialog(item)}
-              >
-                {item.image && (
-                  <div className="w-full h-40">
-                    <img
-                      src={item.image}
-                      alt={item.name}
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                )}
-                <CardHeader className="pb-2">
-                  <div className="flex justify-between items-start">
-                    <CardTitle className="text-xl">{item.name}</CardTitle>
-                    {!hidePricesUntilCart && (
-                      <span className="font-semibold">
-                        {formatPrice(item.price)}
-                      </span>
-                    )}
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  {item.description && (
-                    <p className="text-muted-foreground text-sm mb-2">
-                      {item.description}
-                    </p>
-                  )}
-                  {item.allergens && (
-                    <p className="text-amber-600 dark:text-amber-500 text-sm mb-2">
-                      {item.allergens}
-                    </p>
-                  )}
-                  {item.modifiers.length > 0 && (
-                    <div className="flex gap-2 flex-wrap">
-                      {item.modifiers.map((mod) => (
-                        <Badge key={mod.id} variant="secondary">
-                          {mod.name}
-                        </Badge>
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            ))}
+          <div className="rounded-3xl border border-dashed bg-card/70 px-6 py-16 text-center shadow-sm">
+            <Coffee
+              className="mx-auto mb-4 size-10 text-primary/60"
+              aria-hidden="true"
+            />
+            <h2 className="font-display text-2xl font-semibold">
+              The menu is resting
+            </h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Check back soon for today&apos;s offerings.
+            </p>
           </div>
+        ) : (
+          <section aria-labelledby="menu-heading">
+            <div className="mb-4 flex items-end justify-between gap-4">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">
+                  Fresh today
+                </p>
+                <h2
+                  id="menu-heading"
+                  className="font-display mt-1 text-3xl font-semibold tracking-tight"
+                >
+                  Choose your order
+                </h2>
+              </div>
+              <p className="hidden text-sm text-muted-foreground sm:block">
+                Tap an item to customize
+              </p>
+            </div>
+
+            <div className="grid gap-5 sm:grid-cols-2">
+              {menuItems.map((item) => (
+                <Card
+                  key={item.id}
+                  role="button"
+                  tabIndex={0}
+                  className="group h-full cursor-pointer gap-0 overflow-hidden border-border/80 bg-card/90 py-0 shadow-[0_12px_40px_-28px_oklch(0.27_0.05_45_/_0.7)] transition-all duration-200 hover:-translate-y-1 hover:border-primary/30 hover:shadow-[0_22px_50px_-30px_oklch(0.35_0.1_25_/_0.65)] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none"
+                  onClick={() => openItemDialog(item)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault()
+                      openItemDialog(item)
+                    }
+                  }}
+                >
+                  <div className="relative h-36 overflow-hidden bg-gradient-to-br from-secondary via-muted to-accent sm:h-44">
+                    {item.image ? (
+                      <img
+                        src={item.image}
+                        alt={item.name}
+                        className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
+                      />
+                    ) : (
+                      <div className="flex h-full items-center justify-center">
+                        <Coffee
+                          className="size-12 text-primary/25 transition-transform duration-300 group-hover:-rotate-6 group-hover:scale-110"
+                          aria-hidden="true"
+                        />
+                      </div>
+                    )}
+                    <div className="absolute inset-0 bg-gradient-to-t from-foreground/10 to-transparent" />
+                  </div>
+
+                  <CardHeader className="px-5 pt-5 pb-3">
+                    <div className="flex items-start justify-between gap-4">
+                      <CardTitle className="font-display text-2xl leading-tight">
+                        {item.name}
+                      </CardTitle>
+                      {!hidePricesUntilCart && (
+                        <span className="shrink-0 rounded-full bg-secondary px-2.5 py-1 text-sm font-bold text-secondary-foreground">
+                          {formatPrice(item.price)}
+                        </span>
+                      )}
+                    </div>
+                  </CardHeader>
+                  <CardContent className="flex flex-1 flex-col px-5 pb-5">
+                    {item.description && (
+                      <p className="mb-4 text-sm leading-relaxed text-muted-foreground">
+                        {item.description}
+                      </p>
+                    )}
+                    {item.allergens && (
+                      <p className="mb-3 text-sm font-medium text-amber-700">
+                        {item.allergens}
+                      </p>
+                    )}
+                    {item.modifiers.length > 0 && (
+                      <div className="mb-4 flex flex-wrap gap-2">
+                        {item.modifiers.map((mod) => (
+                          <Badge
+                            key={mod.id}
+                            variant="secondary"
+                            className="rounded-full px-2.5"
+                          >
+                            {mod.name}
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+                    <div className="mt-auto flex items-center gap-1 text-sm font-semibold text-primary">
+                      Customize
+                      <ChevronRight
+                        className="size-4 transition-transform group-hover:translate-x-1"
+                        aria-hidden="true"
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </section>
         )}
       </div>
 
       {/* Fixed cart button */}
       {cartItemCount > 0 && (
-        <div className="fixed bottom-4 left-4 right-4 mx-auto max-w-2xl">
+        <div className="fixed right-0 bottom-3 left-0 z-40 mx-auto max-w-xl px-4 pb-[env(safe-area-inset-bottom)]">
           <Button
-            className="w-full h-14 text-lg"
+            className="h-16 w-full justify-between rounded-2xl px-5 text-base shadow-[0_16px_45px_-14px_oklch(0.28_0.08_25_/_0.75)]"
             size="lg"
             onClick={() => setCartOpen(true)}
           >
-            View Cart ({cartItemCount})
-            {!hidePricesUntilCart && ` - ${formatPrice(cart.getTotal())}`}
+            <span className="flex items-center gap-3">
+              <span className="relative flex size-9 items-center justify-center rounded-xl bg-primary-foreground/15">
+                <ShoppingBag className="size-5" aria-hidden="true" />
+                <span className="absolute -top-1.5 -right-1.5 flex size-5 items-center justify-center rounded-full bg-primary-foreground text-[10px] font-bold text-primary">
+                  {cartItemCount}
+                </span>
+              </span>
+              View cart
+            </span>
+            <span className="text-right">
+              {hidePricesUntilCart ? "Review order" : formatPrice(cart.getTotal())}
+            </span>
           </Button>
         </div>
       )}
 
       {/* Item dialog with modifiers */}
       <Dialog open={!!selectedItem} onOpenChange={() => setSelectedItem(null)}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="top-auto bottom-0 left-0 max-h-[92dvh] w-full max-w-none translate-x-0 translate-y-0 gap-0 overflow-hidden rounded-t-3xl rounded-b-none border-x-0 border-b-0 p-0 shadow-2xl sm:top-1/2 sm:bottom-auto sm:left-1/2 sm:max-w-lg sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-3xl sm:border [&_[data-slot=dialog-close]]:top-4 [&_[data-slot=dialog-close]]:right-4 [&_[data-slot=dialog-close]]:z-20 [&_[data-slot=dialog-close]]:bg-background/90 [&_[data-slot=dialog-close]]:p-2 [&_[data-slot=dialog-close]]:opacity-100 [&_[data-slot=dialog-close]]:shadow-sm">
           {selectedItem && (
             <>
-              {selectedItem.image && (
-                <div className="w-full h-48 mb-2">
+              <div className="absolute top-2 left-1/2 z-20 h-1.5 w-12 -translate-x-1/2 rounded-full bg-white/70 shadow-sm sm:hidden" />
+              <div className="relative h-52 shrink-0 overflow-hidden bg-gradient-to-br from-secondary via-muted to-accent sm:h-60">
+                {selectedItem.image ? (
                   <img
                     src={selectedItem.image}
                     alt={selectedItem.name}
-                    className="w-full h-full object-cover rounded-lg"
+                    className="h-full w-full object-cover"
                   />
-                </div>
-              )}
-              <DialogHeader>
-                <DialogTitle className="text-2xl">
-                  {selectedItem.name}
-                </DialogTitle>
-                {selectedItem.description && (
-                  <p className="text-muted-foreground">
-                    {selectedItem.description}
-                  </p>
+                ) : (
+                  <div className="flex h-full items-center justify-center">
+                    <Coffee
+                      className="size-16 text-primary/25"
+                      aria-hidden="true"
+                    />
+                  </div>
                 )}
-                {selectedItem.allergens && (
-                  <p className="text-amber-600 dark:text-amber-500 text-sm">
-                    {selectedItem.allergens}
-                  </p>
-                )}
-              </DialogHeader>
+                <div className="absolute inset-0 bg-gradient-to-t from-foreground/20 to-transparent" />
+              </div>
 
-              {selectedItem.modifiers.length > 0 && (
-                <div className="space-y-4 py-4">
-                  {selectedItem.modifiers.map((modifier) => (
-                    <div key={modifier.id}>
-                      <h4 className="font-medium mb-2">{modifier.name}</h4>
-                      <div className="grid grid-cols-2 gap-2">
-                        {modifier.options.map((option) => (
-                          <Button
-                            key={option.id}
-                            variant={
-                              selectedModifiers[modifier.id]?.id === option.id
-                                ? "default"
-                                : "outline"
-                            }
-                            className="justify-between"
-                            onClick={() =>
-                              handleModifierSelect(modifier.id, option)
-                            }
-                          >
-                            <span>{option.name}</span>
-                            {!hidePricesUntilCart && option.priceAdjustment !== 0 && (
+              <div className="space-y-5 overflow-y-auto px-6 py-5">
+                <DialogHeader className="text-left">
+                  <DialogTitle className="font-display text-3xl leading-tight">
+                    {selectedItem.name}
+                  </DialogTitle>
+                  {selectedItem.description && (
+                    <p className="leading-relaxed text-muted-foreground">
+                      {selectedItem.description}
+                    </p>
+                  )}
+                  {selectedItem.allergens && (
+                    <p className="text-sm font-medium text-amber-700">
+                      {selectedItem.allergens}
+                    </p>
+                  )}
+                </DialogHeader>
+
+                {selectedItem.modifiers.length > 0 && (
+                  <div className="space-y-5">
+                    {selectedItem.modifiers.map((modifier) => (
+                      <div key={modifier.id}>
+                        <h4 className="mb-2 font-semibold">{modifier.name}</h4>
+                        <div className="grid grid-cols-2 gap-2">
+                          {modifier.options.map((option) => (
+                            <Button
+                              key={option.id}
+                              variant={
+                                selectedModifiers[modifier.id]?.id === option.id
+                                  ? "default"
+                                  : "outline"
+                              }
+                              className="h-11 justify-between rounded-xl"
+                              onClick={() =>
+                                handleModifierSelect(modifier.id, option)
+                              }
+                            >
+                              <span>{option.name}</span>
+                              {!hidePricesUntilCart &&
+                                option.priceAdjustment !== 0 && (
                               <span className="text-xs opacity-70">
                                 {option.priceAdjustment > 0 ? "+" : ""}
                                 {formatPrice(option.priceAdjustment)}
                               </span>
-                            )}
-                          </Button>
-                        ))}
+                                )}
+                            </Button>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+                    ))}
+                  </div>
+                )}
 
-              <div className="flex items-center justify-between rounded-lg border p-3">
-                <span className="font-medium">Quantity</span>
-                <div className="flex items-center gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    aria-label="Decrease quantity"
-                    onClick={() =>
-                      setSelectedQuantity((quantity) =>
-                        Math.max(1, quantity - 1)
-                      )
-                    }
-                    disabled={selectedQuantity <= 1}
-                  >
-                    -
-                  </Button>
-                  <span className="w-8 text-center font-semibold">
-                    {selectedQuantity}
-                  </span>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    aria-label="Increase quantity"
-                    onClick={() =>
-                      setSelectedQuantity((quantity) => quantity + 1)
-                    }
-                  >
-                    +
-                  </Button>
+                <div className="flex items-center justify-between rounded-2xl border bg-muted/45 p-3.5">
+                  <div>
+                    <p className="font-semibold">Quantity</p>
+                    <p className="text-xs text-muted-foreground">
+                      Add more with the same options
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      className="rounded-xl bg-background"
+                      aria-label="Decrease quantity"
+                      onClick={() =>
+                        setSelectedQuantity((quantity) =>
+                          Math.max(1, quantity - 1)
+                        )
+                      }
+                      disabled={selectedQuantity <= 1}
+                    >
+                      <Minus className="size-4" aria-hidden="true" />
+                    </Button>
+                    <span className="w-8 text-center text-lg font-bold">
+                      {selectedQuantity}
+                    </span>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      className="rounded-xl bg-background"
+                      aria-label="Increase quantity"
+                      onClick={() =>
+                        setSelectedQuantity((quantity) => quantity + 1)
+                      }
+                    >
+                      <Plus className="size-4" aria-hidden="true" />
+                    </Button>
+                  </div>
                 </div>
               </div>
 
-              <DialogFooter>
-                <Button className="w-full h-12" onClick={handleAddToCart}>
+              <DialogFooter className="border-t bg-background/95 p-4 backdrop-blur-md sm:p-5">
+                <Button
+                  className="h-13 w-full rounded-xl text-base shadow-md"
+                  onClick={handleAddToCart}
+                >
                   {selectedQuantity === 1
                     ? "Add to Cart"
                     : `Add ${selectedQuantity} to Cart`}

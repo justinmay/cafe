@@ -5,6 +5,7 @@ import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Suspense } from "react"
+import { formatPriceRange } from "@/lib/format"
 
 const DEFAULT_CHECKOUT_MESSAGE =
   "Payment via Venmo only. You'll pay after placing your order."
@@ -15,7 +16,17 @@ function OrderConfirmedContent() {
   const router = useRouter()
   const org = params.org as string
   const orderNumber = searchParams.get("orderNumber")
-  const [countdown, setCountdown] = useState(10)
+  const priceMinParam = searchParams.get("priceMin")
+  const priceMaxParam = searchParams.get("priceMax")
+  const priceMin = priceMinParam === null ? Number.NaN : Number(priceMinParam)
+  const priceMax = priceMaxParam === null ? Number.NaN : Number(priceMaxParam)
+  const hasConfirmationAmount =
+    Number.isInteger(priceMin) &&
+    Number.isInteger(priceMax) &&
+    priceMin >= 0 &&
+    priceMax >= priceMin
+  const usesSuggestedPrice = searchParams.get("suggested") === "true"
+  const [countdown, setCountdown] = useState(30)
   const [checkoutMessage, setCheckoutMessage] = useState(
     DEFAULT_CHECKOUT_MESSAGE
   )
@@ -104,6 +115,17 @@ function OrderConfirmedContent() {
             <p className="text-muted-foreground mb-2">Your order number is</p>
             <p className="text-6xl font-bold animate-bounce-in">{orderNumber || "—"}</p>
           </div>
+
+          {hasConfirmationAmount && (
+            <div className="rounded-2xl border border-primary/30 bg-primary/5 p-5">
+              <p className="mb-1 text-xs font-bold uppercase tracking-wider text-primary">
+                {usesSuggestedPrice ? "Suggested amount" : "Order total"}
+              </p>
+              <p className="text-4xl font-bold tracking-tight text-foreground">
+                {formatPriceRange(priceMin, priceMax)}
+              </p>
+            </div>
+          )}
 
           <div className="rounded-xl border-2 border-primary/40 bg-primary/10 p-5 text-left shadow-sm">
             <p className="mb-2 text-xs font-bold uppercase tracking-wider text-primary">

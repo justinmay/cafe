@@ -199,9 +199,26 @@ export default function MenuPage() {
       }
 
       const order = await res.json()
+      const priceRange = cart.getTotalPriceRange()
+      const usesSuggestedPrice = cart.items.some(
+        (item) =>
+          item.useSuggestedPriceRange &&
+          item.suggestedMinPrice != null &&
+          item.suggestedMaxPrice != null
+      )
+      const confirmationParams = new URLSearchParams({
+        orderNumber: String(order.orderNumber),
+        priceMin: String(priceRange.min),
+        priceMax: String(priceRange.max),
+      })
+
+      if (usesSuggestedPrice) {
+        confirmationParams.set("suggested", "true")
+      }
+
       cart.clearCart()
       setCartOpen(false)
-      router.push(`/${org}/order-confirmed?orderNumber=${order.orderNumber}`)
+      router.push(`/${org}/order-confirmed?${confirmationParams.toString()}`)
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to place order")
     } finally {

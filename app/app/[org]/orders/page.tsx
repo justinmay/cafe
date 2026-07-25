@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useCallback } from "react"
+import { useEffect, useState, useCallback, useRef } from "react"
 import Link from "next/link"
 import { useParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
@@ -100,13 +100,25 @@ export default function OrdersPage() {
   const [updating, setUpdating] = useState<string | null>(null)
   const [updatingItem, setUpdatingItem] = useState<string | null>(null)
   const [pollStatus, setPollStatus] = useState<"ok" | "error">("ok")
+  const activeMutations = useRef(0)
+  const mutationVersion = useRef(0)
 
   const fetchOrders = useCallback(async () => {
+    if (activeMutations.current > 0) return
+
+    const versionAtRequestStart = mutationVersion.current
+
     try {
       const res = await fetch(`/api/${org}/orders`)
       if (!res.ok) throw new Error("Failed to fetch orders")
       const data = await res.json()
-      setOrders(Array.isArray(data) ? data : [])
+
+      if (
+        activeMutations.current === 0 &&
+        versionAtRequestStart === mutationVersion.current
+      ) {
+        setOrders(Array.isArray(data) ? data : [])
+      }
       setPollStatus("ok")
     } catch {
       setPollStatus("error")
@@ -125,7 +137,10 @@ export default function OrdersPage() {
     orderId: string,
     status: "RECEIVED" | "PREPARING" | "READY"
   ) {
+    activeMutations.current += 1
+    mutationVersion.current += 1
     setUpdating(orderId)
+
     try {
       const res = await fetch(`/api/${org}/orders/${orderId}/status`, {
         method: "PATCH",
@@ -161,12 +176,15 @@ export default function OrdersPage() {
     } catch {
       toast.error("Failed to update order status")
     } finally {
+      activeMutations.current -= 1
       setUpdating(null)
     }
   }
 
   async function toggleItemCompletion(orderId: string, item: OrderItem) {
     const completed = !item.completed
+    activeMutations.current += 1
+    mutationVersion.current += 1
     setUpdatingItem(item.id)
 
     try {
@@ -185,14 +203,16 @@ export default function OrdersPage() {
       }
 
       const data = await res.json()
-      const orderReady = data.orderStatus === "READY"
+      const orderStatus = data.orderStatus as Order["status"]
+      const orderReady = orderStatus === "READY"
+      const orderStarted = data.orderStarted === true
 
       setOrders((prev) =>
         prev.map((order) =>
           order.id === orderId
             ? {
                 ...order,
-                status: orderReady ? "READY" : order.status,
+                status: orderStatus,
                 items: order.items.map((orderItem) =>
                   orderItem.id === item.id
                     ? { ...orderItem, completed }
@@ -205,6 +225,8 @@ export default function OrdersPage() {
       toast.success(
         orderReady
           ? `${item.menuItem.name} crossed off — order ready`
+          : orderStarted
+          ? `${item.menuItem.name} crossed off — preparation started`
           : completed
           ? `${item.menuItem.name} crossed off`
           : `${item.menuItem.name} reopened`
@@ -214,6 +236,7 @@ export default function OrdersPage() {
         error instanceof Error ? error.message : "Failed to update item"
       )
     } finally {
+      activeMutations.current -= 1
       setUpdatingItem(null)
     }
   }
@@ -466,7 +489,7 @@ export default function OrdersPage() {
                               toggleItemCompletion(order.id, item)
                             }
                             disabled={
-                              order.status !== "PREPARING" ||
+                              order.status === "READY" ||
                               updatingItem === item.id
                             }
                             aria-label={
@@ -525,7 +548,7 @@ export default function OrdersPage() {
                           className="size-3.5 shrink-0"
                           aria-hidden="true"
                         />
-                        Start this ticket to unlock the item checklist.
+                        Crossing off an item will start this ticket automatically.
                       </p>
                     )}
                   </CardContent>

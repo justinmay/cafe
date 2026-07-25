@@ -34,26 +34,13 @@ export async function PATCH(
           organizationId: session.organizationId,
         },
       },
-      include: {
-        order: {
-          select: {
-            status: true,
-          },
-        },
-      },
+      select: { id: true },
     })
 
     if (!existingItem) {
       return NextResponse.json(
         { error: "Order item not found" },
         { status: 404 }
-      )
-    }
-
-    if (existingItem.order.status !== "PREPARING") {
-      return NextResponse.json(
-        { error: "Start preparing the order before updating its items" },
-        { status: 409 }
       )
     }
 
@@ -70,16 +57,30 @@ export async function PATCH(
         select: { status: true },
       })
 
-      if (order?.status !== "PREPARING") {
-        throw new Error("ORDER_NOT_PREPARING")
+      if (!order) {
+        throw new Error("ORDER_NOT_FOUND")
+      }
+
+      if (order.status === "READY") {
+        throw new Error("ORDER_ALREADY_READY")
+      }
+
+      let orderStatus: "RECEIVED" | "PREPARING" | "READY" = order.status
+      let orderStarted = false
+
+      if (completed && order.status === "RECEIVED") {
+        await tx.order.update({
+          where: { id: orderId },
+          data: { status: "PREPARING" },
+        })
+        orderStatus = "PREPARING"
+        orderStarted = true
       }
 
       const orderItem = await tx.orderItem.update({
         where: { id: itemId },
         data: { completed },
       })
-
-      let orderStatus: "PREPARING" | "READY" = order.status
 
       if (completed) {
         const remainingItems = await tx.orderItem.count({
@@ -98,7 +99,7 @@ export async function PATCH(
         }
       }
 
-      return { orderItem, orderStatus }
+      return { orderItem, orderStatus, orderStarted }
     })
 
     return NextResponse.json(result)
@@ -110,11 +111,15 @@ export async function PATCH(
       )
     }
 
-    if (error instanceof Error && error.message === "ORDER_NOT_PREPARING") {
+    if (error instanceof Error && error.message === "ORDER_ALREADY_READY") {
       return NextResponse.json(
-        { error: "Start preparing the order before updating its items" },
+        { error: "Move the order back to Preparing before changing its items" },
         { status: 409 }
       )
+    }
+
+    if (error instanceof Error && error.message === "ORDER_NOT_FOUND") {
+      return NextResponse.json({ error: "Order not found" }, { status: 404 })
     }
 
     console.error("Order item update error:", error)

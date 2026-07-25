@@ -34,13 +34,7 @@ export async function PATCH(
           organizationId: session.organizationId,
         },
       },
-      include: {
-        order: {
-          select: {
-            status: true,
-          },
-        },
-      },
+      select: { id: true },
     })
 
     if (!existingItem) {
@@ -50,25 +44,82 @@ export async function PATCH(
       )
     }
 
-    if (existingItem.order.status !== "PREPARING") {
-      return NextResponse.json(
-        { error: "Start preparing the order before updating its items" },
-        { status: 409 }
-      )
-    }
+    const result = await prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`
+        SELECT "id"
+        FROM "Order"
+        WHERE "id" = ${orderId}
+        FOR UPDATE
+      `
 
-    const orderItem = await prisma.orderItem.update({
-      where: { id: itemId },
-      data: { completed },
+      const order = await tx.order.findUnique({
+        where: { id: orderId },
+        select: { status: true },
+      })
+
+      if (!order) {
+        throw new Error("ORDER_NOT_FOUND")
+      }
+
+      if (order.status === "READY") {
+        throw new Error("ORDER_ALREADY_READY")
+      }
+
+      let orderStatus: "RECEIVED" | "PREPARING" | "READY" = order.status
+      let orderStarted = false
+
+      if (completed && order.status === "RECEIVED") {
+        await tx.order.update({
+          where: { id: orderId },
+          data: { status: "PREPARING" },
+        })
+        orderStatus = "PREPARING"
+        orderStarted = true
+      }
+
+      const orderItem = await tx.orderItem.update({
+        where: { id: itemId },
+        data: { completed },
+      })
+
+      if (completed) {
+        const remainingItems = await tx.orderItem.count({
+          where: {
+            orderId,
+            completed: false,
+          },
+        })
+
+        if (remainingItems === 0) {
+          await tx.order.update({
+            where: { id: orderId },
+            data: { status: "READY" },
+          })
+          orderStatus = "READY"
+        }
+      }
+
+      return { orderItem, orderStatus, orderStarted }
     })
 
-    return NextResponse.json(orderItem)
+    return NextResponse.json(result)
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { error: "Invalid item status" },
         { status: 400 }
       )
+    }
+
+    if (error instanceof Error && error.message === "ORDER_ALREADY_READY") {
+      return NextResponse.json(
+        { error: "Move the order back to Preparing before changing its items" },
+        { status: 409 }
+      )
+    }
+
+    if (error instanceof Error && error.message === "ORDER_NOT_FOUND") {
+      return NextResponse.json({ error: "Order not found" }, { status: 404 })
     }
 
     console.error("Order item update error:", error)

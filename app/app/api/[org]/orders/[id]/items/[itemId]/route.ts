@@ -54,7 +54,7 @@ export async function PATCH(
 
       const order = await tx.order.findUnique({
         where: { id: orderId },
-        select: { status: true },
+        select: { status: true, updatedAt: true },
       })
 
       if (!order) {
@@ -67,14 +67,17 @@ export async function PATCH(
 
       let orderStatus: "RECEIVED" | "PREPARING" | "READY" = order.status
       let orderStarted = false
+      let orderUpdatedAt = order.updatedAt
 
       if (completed && order.status === "RECEIVED") {
-        await tx.order.update({
+        const startedOrder = await tx.order.update({
           where: { id: orderId },
           data: { status: "PREPARING" },
+          select: { updatedAt: true },
         })
         orderStatus = "PREPARING"
         orderStarted = true
+        orderUpdatedAt = startedOrder.updatedAt
       }
 
       const orderItem = await tx.orderItem.update({
@@ -91,15 +94,17 @@ export async function PATCH(
         })
 
         if (remainingItems === 0) {
-          await tx.order.update({
+          const readyOrder = await tx.order.update({
             where: { id: orderId },
             data: { status: "READY" },
+            select: { updatedAt: true },
           })
           orderStatus = "READY"
+          orderUpdatedAt = readyOrder.updatedAt
         }
       }
 
-      return { orderItem, orderStatus, orderStarted }
+      return { orderItem, orderStatus, orderStarted, orderUpdatedAt }
     })
 
     return NextResponse.json(result)

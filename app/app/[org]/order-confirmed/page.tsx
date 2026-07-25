@@ -105,8 +105,11 @@ function OrderConfirmedContent() {
             <p className="text-6xl font-bold animate-bounce-in">{orderNumber || "—"}</p>
           </div>
 
-          <div className="bg-muted/50 rounded-lg p-4">
-            <p className="text-sm text-muted-foreground">
+          <div className="rounded-xl border-2 border-primary/40 bg-primary/10 p-5 text-left shadow-sm">
+            <p className="mb-2 text-xs font-bold uppercase tracking-wider text-primary">
+              Checkout note
+            </p>
+            <p className="text-base font-semibold leading-relaxed text-foreground">
               {checkoutMessage}
             </p>
           </div>

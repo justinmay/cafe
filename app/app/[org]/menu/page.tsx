@@ -53,6 +53,7 @@ export default function MenuPage() {
   const [selectedModifiers, setSelectedModifiers] = useState<
     Record<string, ModifierOption>
   >({})
+  const [selectedQuantity, setSelectedQuantity] = useState(1)
   const [cartOpen, setCartOpen] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [hidePricesUntilCart, setHidePricesUntilCart] = useState(false)
@@ -82,6 +83,7 @@ export default function MenuPage() {
   function openItemDialog(item: MenuItem) {
     setSelectedItem(item)
     setSelectedModifiers({})
+    setSelectedQuantity(1)
   }
 
   function handleModifierSelect(modifierId: string, option: ModifierOption) {
@@ -106,13 +108,18 @@ export default function MenuPage() {
       menuItemId: selectedItem.id,
       name: selectedItem.name,
       basePrice: selectedItem.price,
-      quantity: 1,
+      quantity: selectedQuantity,
       modifiers,
     })
 
-    toast.success(`Added ${selectedItem.name} to cart`)
+    toast.success(
+      selectedQuantity === 1
+        ? `Added ${selectedItem.name} to cart`
+        : `Added ${selectedQuantity} × ${selectedItem.name} to cart`
+    )
     setSelectedItem(null)
     setSelectedModifiers({})
+    setSelectedQuantity(1)
   }
 
   function calculateItemPrice(item: MenuItem) {
@@ -326,11 +333,49 @@ export default function MenuPage() {
                 </div>
               )}
 
+              <div className="flex items-center justify-between rounded-lg border p-3">
+                <span className="font-medium">Quantity</span>
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    aria-label="Decrease quantity"
+                    onClick={() =>
+                      setSelectedQuantity((quantity) =>
+                        Math.max(1, quantity - 1)
+                      )
+                    }
+                    disabled={selectedQuantity <= 1}
+                  >
+                    -
+                  </Button>
+                  <span className="w-8 text-center font-semibold">
+                    {selectedQuantity}
+                  </span>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    aria-label="Increase quantity"
+                    onClick={() =>
+                      setSelectedQuantity((quantity) => quantity + 1)
+                    }
+                  >
+                    +
+                  </Button>
+                </div>
+              </div>
+
               <DialogFooter>
                 <Button className="w-full h-12" onClick={handleAddToCart}>
-                  Add to Cart
+                  {selectedQuantity === 1
+                    ? "Add to Cart"
+                    : `Add ${selectedQuantity} to Cart`}
                   {!hidePricesUntilCart &&
-                    ` - ${formatPrice(calculateItemPrice(selectedItem))}`}
+                    ` - ${formatPrice(
+                      calculateItemPrice(selectedItem) * selectedQuantity
+                    )}`}
                 </Button>
               </DialogFooter>
             </>

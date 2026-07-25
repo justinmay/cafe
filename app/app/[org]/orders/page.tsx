@@ -46,6 +46,7 @@ interface Order {
   status: "RECEIVED" | "PREPARING" | "READY"
   total: number
   createdAt: string
+  updatedAt: string
   items: OrderItem[]
 }
 
@@ -398,12 +399,15 @@ export default function OrdersPage() {
 
       if (!res.ok) throw new Error("Failed to update status")
 
+      const updatedOrder = await res.json()
+
       setOrders((prev) =>
         prev.map((order) =>
           order.id === orderId
             ? {
                 ...order,
                 status,
+                updatedAt: updatedOrder.updatedAt ?? new Date().toISOString(),
                 items:
                   status === "READY"
                     ? order.items.map((item) => ({
@@ -461,6 +465,9 @@ export default function OrdersPage() {
             ? {
                 ...order,
                 status: orderStatus,
+                updatedAt:
+                  data.orderUpdatedAt ??
+                  (orderReady ? new Date().toISOString() : order.updatedAt),
                 items: order.items.map((orderItem) =>
                   orderItem.id === item.id
                     ? { ...orderItem, completed }
@@ -489,20 +496,27 @@ export default function OrdersPage() {
     }
   }
 
-  const chronologicalOrders = [...orders].sort((a, b) => {
+  const oldestFirstOrders = [...orders].sort((a, b) => {
     const createdAtDifference =
       new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
 
     return createdAtDifference || a.orderNumber - b.orderNumber
   })
   const ordersByStatus: Record<Order["status"], Order[]> = {
-    RECEIVED: chronologicalOrders.filter(
+    RECEIVED: oldestFirstOrders.filter(
       (order) => order.status === "RECEIVED"
     ),
-    PREPARING: chronologicalOrders.filter(
+    PREPARING: oldestFirstOrders.filter(
       (order) => order.status === "PREPARING"
     ),
-    READY: chronologicalOrders.filter((order) => order.status === "READY"),
+    READY: orders
+      .filter((order) => order.status === "READY")
+      .sort((a, b) => {
+        const updatedAtDifference =
+          new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+
+        return updatedAtDifference || b.orderNumber - a.orderNumber
+      }),
   }
 
   if (loading) {
@@ -566,8 +580,8 @@ export default function OrdersPage() {
                 Order queue
               </h1>
               <p className="mt-2 max-w-xl text-sm leading-5 text-[#d9c8bb]">
-                Work left to right. The oldest ticket stays at the top of every
-                lane.
+                Work left to right. Active tickets stay oldest-first, while
+                newly finished orders appear at the top.
               </p>
             </div>
 
@@ -610,7 +624,7 @@ export default function OrdersPage() {
               Service board
             </h2>
             <p className="text-xs leading-5 text-muted-foreground sm:text-sm">
-              Oldest orders first, grouped by preparation status
+              Active orders oldest-first, newest finished orders first
             </p>
           </div>
           <p className="hidden text-xs font-semibold text-muted-foreground sm:block">

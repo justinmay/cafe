@@ -37,9 +37,25 @@ export async function PATCH(
       )
     }
 
-    const order = await prisma.order.update({
-      where: { id },
-      data: { status },
+    const order = await prisma.$transaction(async (tx) => {
+      const updatedOrder = await tx.order.update({
+        where: { id },
+        data: { status },
+      })
+
+      if (status === "READY") {
+        await tx.orderItem.updateMany({
+          where: { orderId: id },
+          data: { completed: true },
+        })
+      } else if (status === "RECEIVED") {
+        await tx.orderItem.updateMany({
+          where: { orderId: id },
+          data: { completed: false },
+        })
+      }
+
+      return updatedOrder
     })
 
     return NextResponse.json(order)

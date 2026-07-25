@@ -3,9 +3,8 @@
 import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
@@ -239,21 +238,16 @@ export default function MenuPage() {
           </div>
         ) : (
           <section aria-labelledby="menu-heading">
-            <div className="mb-4 flex items-end justify-between gap-4">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">
-                  Fresh today
-                </p>
-                <h2
-                  id="menu-heading"
-                  className="font-display mt-1 text-3xl font-semibold tracking-tight"
-                >
-                  Choose your order
-                </h2>
-              </div>
-              <p className="hidden text-sm text-muted-foreground sm:block">
-                Tap an item to customize
+            <div className="mb-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">
+                Fresh today
               </p>
+              <h2
+                id="menu-heading"
+                className="font-display mt-1 text-3xl font-semibold tracking-tight"
+              >
+                Choose your order
+              </h2>
             </div>
 
             <div className="grid gap-5 sm:grid-cols-2">
@@ -262,7 +256,7 @@ export default function MenuPage() {
                   key={item.id}
                   role="button"
                   tabIndex={0}
-                  className="group h-full cursor-pointer gap-0 overflow-hidden border-border/80 bg-card/90 py-0 shadow-[0_12px_40px_-28px_oklch(0.27_0.05_45_/_0.7)] transition-all duration-200 hover:-translate-y-1 hover:border-primary/30 hover:shadow-[0_22px_50px_-30px_oklch(0.35_0.1_25_/_0.65)] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none"
+                  className="group relative aspect-square cursor-pointer gap-0 overflow-hidden border-white/20 bg-foreground py-0 shadow-[0_12px_40px_-24px_oklch(0.27_0.05_45_/_0.75)] transition-all duration-200 hover:-translate-y-1 hover:border-white/40 hover:shadow-[0_24px_55px_-26px_oklch(0.25_0.07_32_/_0.8)] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none"
                   onClick={() => openItemDialog(item)}
                   onKeyDown={(event) => {
                     if (event.key === "Enter" || event.key === " ") {
@@ -271,68 +265,61 @@ export default function MenuPage() {
                     }
                   }}
                 >
-                  <div className="relative h-36 overflow-hidden bg-gradient-to-br from-secondary via-muted to-accent sm:h-44">
+                  <div className="absolute inset-0 overflow-hidden bg-gradient-to-br from-secondary via-muted to-accent">
                     {item.image ? (
-                      <img
-                        src={item.image}
-                        alt={item.name}
-                        className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
-                      />
+                      <>
+                        <img
+                          src={item.image}
+                          alt=""
+                          aria-hidden="true"
+                          className="absolute inset-0 h-full w-full scale-110 object-cover opacity-45 blur-xl"
+                        />
+                        <img
+                          src={item.image}
+                          alt=""
+                          className="relative h-full w-full object-contain transition-transform duration-500 group-hover:scale-[1.025]"
+                        />
+                      </>
                     ) : (
                       <div className="flex h-full items-center justify-center">
                         <Coffee
-                          className="size-12 text-primary/25 transition-transform duration-300 group-hover:-rotate-6 group-hover:scale-110"
+                          className="size-16 text-primary/25 transition-transform duration-300 group-hover:-rotate-6 group-hover:scale-110"
                           aria-hidden="true"
                         />
                       </div>
                     )}
-                    <div className="absolute inset-0 bg-gradient-to-t from-foreground/10 to-transparent" />
                   </div>
 
-                  <CardHeader className="px-5 pt-5 pb-3">
-                    <div className="flex items-start justify-between gap-4">
-                      <CardTitle className="font-display text-2xl leading-tight">
-                        {item.name}
-                      </CardTitle>
-                      {!hidePricesUntilCart && (
-                        <span className="shrink-0 rounded-full bg-secondary px-2.5 py-1 text-sm font-bold text-secondary-foreground">
-                          {formatPrice(item.price)}
-                        </span>
-                      )}
-                    </div>
-                  </CardHeader>
-                  <CardContent className="flex flex-1 flex-col px-5 pb-5">
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/30 to-black/5" />
+
+                  {!hidePricesUntilCart && (
+                    <span className="absolute top-4 right-4 rounded-full bg-background/90 px-3 py-1.5 text-sm font-bold text-foreground shadow-sm backdrop-blur-md">
+                      {formatPrice(item.price)}
+                    </span>
+                  )}
+
+                  <div className="absolute inset-x-0 bottom-0 p-5 text-white sm:p-6">
+                    <h3 className="font-display text-2xl leading-tight font-semibold drop-shadow-sm sm:text-3xl">
+                      {item.name}
+                    </h3>
                     {item.description && (
-                      <p className="mb-4 text-sm leading-relaxed text-muted-foreground">
+                      <p className="mt-2 line-clamp-2 max-w-md text-sm leading-relaxed text-white/80">
                         {item.description}
                       </p>
                     )}
                     {item.allergens && (
-                      <p className="mb-3 text-sm font-medium text-amber-700">
+                      <p className="mt-2 line-clamp-1 text-xs font-medium text-amber-200">
                         {item.allergens}
                       </p>
                     )}
-                    {item.modifiers.length > 0 && (
-                      <div className="mb-4 flex flex-wrap gap-2">
-                        {item.modifiers.map((mod) => (
-                          <Badge
-                            key={mod.id}
-                            variant="secondary"
-                            className="rounded-full px-2.5"
-                          >
-                            {mod.name}
-                          </Badge>
-                        ))}
-                      </div>
-                    )}
-                    <div className="mt-auto flex items-center gap-1 text-sm font-semibold text-primary">
+                    <div className="mt-4 flex items-center gap-1 text-sm font-semibold text-white">
                       Customize
                       <ChevronRight
                         className="size-4 transition-transform group-hover:translate-x-1"
                         aria-hidden="true"
                       />
                     </div>
-                  </CardContent>
+                  </div>
                 </Card>
               ))}
             </div>

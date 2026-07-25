@@ -16,7 +16,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog"
 import { useCart, type CartItemModifier } from "@/hooks/use-cart"
-import { formatPrice } from "@/lib/format"
+import { formatPrice, formatPriceRange } from "@/lib/format"
 import { toast } from "sonner"
 import {
   Coffee,
@@ -44,8 +44,31 @@ interface MenuItem {
   description: string | null
   image: string | null
   price: number
+  suggestedMinPrice: number | null
+  suggestedMaxPrice: number | null
+  useSuggestedPriceRange: boolean
   allergens: string | null
   modifiers: Modifier[]
+}
+
+function getMenuItemPriceRange(
+  item: MenuItem,
+  modifiersTotal = 0,
+  quantity = 1
+) {
+  if (
+    item.useSuggestedPriceRange &&
+    item.suggestedMinPrice != null &&
+    item.suggestedMaxPrice != null
+  ) {
+    return {
+      min: Math.max(0, item.suggestedMinPrice + modifiersTotal) * quantity,
+      max: Math.max(0, item.suggestedMaxPrice + modifiersTotal) * quantity,
+    }
+  }
+
+  const total = Math.max(0, item.price + modifiersTotal) * quantity
+  return { min: total, max: total }
 }
 
 export default function MenuPage() {
@@ -114,6 +137,9 @@ export default function MenuPage() {
       menuItemId: selectedItem.id,
       name: selectedItem.name,
       basePrice: selectedItem.price,
+      suggestedMinPrice: selectedItem.suggestedMinPrice,
+      suggestedMaxPrice: selectedItem.suggestedMaxPrice,
+      useSuggestedPriceRange: selectedItem.useSuggestedPriceRange,
       quantity: selectedQuantity,
       modifiers,
     })
@@ -128,12 +154,12 @@ export default function MenuPage() {
     setSelectedQuantity(1)
   }
 
-  function calculateItemPrice(item: MenuItem) {
+  function calculateSelectedItemPriceRange(item: MenuItem) {
     const modifiersTotal = Object.values(selectedModifiers).reduce(
       (sum, opt) => sum + opt.priceAdjustment,
       0
     )
-    return item.price + modifiersTotal
+    return getMenuItemPriceRange(item, modifiersTotal, selectedQuantity)
   }
 
   async function handleSubmitOrder(e: React.FormEvent<HTMLFormElement>) {
@@ -293,7 +319,11 @@ export default function MenuPage() {
 
                   {!hidePricesUntilCart && (
                     <span className="absolute top-4 right-4 rounded-full bg-background/90 px-3 py-1.5 text-sm font-bold text-foreground shadow-sm backdrop-blur-md">
-                      {formatPrice(item.price)}
+                      {item.useSuggestedPriceRange && "Suggested "}
+                      {formatPriceRange(
+                        getMenuItemPriceRange(item).min,
+                        getMenuItemPriceRange(item).max
+                      )}
                     </span>
                   )}
 
@@ -337,7 +367,12 @@ export default function MenuPage() {
               View cart
             </span>
             <span className="text-right">
-              {hidePricesUntilCart ? "Review order" : formatPrice(cart.getTotal())}
+              {hidePricesUntilCart
+                ? "Review order"
+                : formatPriceRange(
+                    cart.getTotalPriceRange().min,
+                    cart.getTotalPriceRange().max
+                  )}
             </span>
           </Button>
         </div>
@@ -470,8 +505,9 @@ export default function MenuPage() {
                     ? "Add to Cart"
                     : `Add ${selectedQuantity} to Cart`}
                   {!hidePricesUntilCart &&
-                    ` - ${formatPrice(
-                      calculateItemPrice(selectedItem) * selectedQuantity
+                    ` - ${formatPriceRange(
+                      calculateSelectedItemPriceRange(selectedItem).min,
+                      calculateSelectedItemPriceRange(selectedItem).max
                     )}`}
                 </Button>
               </DialogFooter>
@@ -499,7 +535,10 @@ export default function MenuPage() {
                     <div className="flex justify-between items-start mb-2">
                       <span className="font-medium">{item.name}</span>
                       <span className="font-semibold">
-                        {formatPrice(cart.getItemTotal(item))}
+                        {formatPriceRange(
+                          cart.getItemPriceRange(item).min,
+                          cart.getItemPriceRange(item).max
+                        )}
                       </span>
                     </div>
                     {item.modifiers.length > 0 && (
@@ -542,8 +581,18 @@ export default function MenuPage() {
               <Separator />
 
               <div className="flex justify-between items-center text-xl font-bold">
-                <span>Total</span>
-                <span>{formatPrice(cart.getTotal())}</span>
+                <span>
+                  {cart.getTotalPriceRange().min ===
+                  cart.getTotalPriceRange().max
+                    ? "Total"
+                    : "Suggested total"}
+                </span>
+                <span>
+                  {formatPriceRange(
+                    cart.getTotalPriceRange().min,
+                    cart.getTotalPriceRange().max
+                  )}
+                </span>
               </div>
 
               <form onSubmit={handleSubmitOrder} className="space-y-4">
@@ -563,7 +612,12 @@ export default function MenuPage() {
                   className="w-full h-12"
                   disabled={submitting}
                 >
-                  {submitting ? "Placing Order..." : `Place Order - ${formatPrice(cart.getTotal())}`}
+                  {submitting
+                    ? "Placing Order..."
+                    : `Place Order - ${formatPriceRange(
+                        cart.getTotalPriceRange().min,
+                        cart.getTotalPriceRange().max
+                      )}`}
                 </Button>
               </form>
             </>

@@ -15,8 +15,16 @@ export interface CartItem {
   menuItemId: string
   name: string
   basePrice: number
+  suggestedMinPrice?: number | null
+  suggestedMaxPrice?: number | null
+  useSuggestedPriceRange?: boolean
   quantity: number
   modifiers: CartItemModifier[]
+}
+
+export interface CartPriceRange {
+  min: number
+  max: number
 }
 
 interface CartState {
@@ -29,6 +37,8 @@ interface CartState {
   clearCart: () => void
   getTotal: () => number
   getItemTotal: (item: CartItem) => number
+  getItemPriceRange: (item: CartItem) => CartPriceRange
+  getTotalPriceRange: () => CartPriceRange
 }
 
 // Store instances by org slug
@@ -73,11 +83,51 @@ function createCartStore(orgSlug: string) {
           return (item.basePrice + modifiersTotal) * item.quantity
         },
 
+        getItemPriceRange: (item) => {
+          const modifiersTotal = item.modifiers.reduce(
+            (sum, mod) => sum + mod.priceAdjustment,
+            0
+          )
+          const exactPrice = Math.max(0, item.basePrice + modifiersTotal)
+
+          if (
+            !item.useSuggestedPriceRange ||
+            item.suggestedMinPrice == null ||
+            item.suggestedMaxPrice == null
+          ) {
+            const total = exactPrice * item.quantity
+            return { min: total, max: total }
+          }
+
+          return {
+            min:
+              Math.max(0, item.suggestedMinPrice + modifiersTotal) *
+              item.quantity,
+            max:
+              Math.max(0, item.suggestedMaxPrice + modifiersTotal) *
+              item.quantity,
+          }
+        },
+
         getTotal: () => {
           const state = get()
           return state.items.reduce(
             (sum, item) => sum + state.getItemTotal(item),
             0
+          )
+        },
+
+        getTotalPriceRange: () => {
+          const state = get()
+          return state.items.reduce(
+            (range, item) => {
+              const itemRange = state.getItemPriceRange(item)
+              return {
+                min: range.min + itemRange.min,
+                max: range.max + itemRange.max,
+              }
+            },
+            { min: 0, max: 0 }
           )
         },
       }),

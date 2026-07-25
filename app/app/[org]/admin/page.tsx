@@ -17,7 +17,11 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog"
-import { formatPrice, parsePriceToCents } from "@/lib/format"
+import {
+  formatPrice,
+  formatPriceRange,
+  parsePriceToCents,
+} from "@/lib/format"
 import { toast } from "sonner"
 
 interface ModifierOption {
@@ -38,6 +42,9 @@ interface MenuItem {
   description: string | null
   image: string | null
   price: number
+  suggestedMinPrice: number | null
+  suggestedMaxPrice: number | null
+  useSuggestedPriceRange: boolean
   allergens: string | null
   available: boolean
   modifiers: Modifier[]
@@ -57,6 +64,9 @@ export default function AdminPage() {
   const [description, setDescription] = useState("")
   const [image, setImage] = useState("")
   const [price, setPrice] = useState("")
+  const [suggestedMinPrice, setSuggestedMinPrice] = useState("")
+  const [suggestedMaxPrice, setSuggestedMaxPrice] = useState("")
+  const [useSuggestedPriceRange, setUseSuggestedPriceRange] = useState(false)
   const [allergens, setAllergens] = useState("")
   const [available, setAvailable] = useState(true)
   const [modifiers, setModifiers] = useState<Modifier[]>([])
@@ -142,6 +152,9 @@ export default function AdminPage() {
     setDescription("")
     setImage("")
     setPrice("")
+    setSuggestedMinPrice("")
+    setSuggestedMaxPrice("")
+    setUseSuggestedPriceRange(false)
     setAllergens("")
     setAvailable(true)
     setModifiers([])
@@ -154,6 +167,17 @@ export default function AdminPage() {
     setDescription(item.description || "")
     setImage(item.image || "")
     setPrice((item.price / 100).toFixed(2))
+    setSuggestedMinPrice(
+      item.suggestedMinPrice == null
+        ? ""
+        : (item.suggestedMinPrice / 100).toFixed(2)
+    )
+    setSuggestedMaxPrice(
+      item.suggestedMaxPrice == null
+        ? ""
+        : (item.suggestedMaxPrice / 100).toFixed(2)
+    )
+    setUseSuggestedPriceRange(item.useSuggestedPriceRange)
     setAllergens(item.allergens || "")
     setAvailable(item.available)
     setModifiers(item.modifiers.map((m) => ({ ...m, options: [...m.options] })))
@@ -226,6 +250,31 @@ export default function AdminPage() {
       return
     }
 
+    if (
+      useSuggestedPriceRange &&
+      (!suggestedMinPrice.trim() || !suggestedMaxPrice.trim())
+    ) {
+      toast.error("Enter both a suggested minimum and maximum price")
+      return
+    }
+
+    const suggestedMinInCents = suggestedMinPrice.trim()
+      ? parsePriceToCents(suggestedMinPrice)
+      : null
+    const suggestedMaxInCents = suggestedMaxPrice.trim()
+      ? parsePriceToCents(suggestedMaxPrice)
+      : null
+
+    if (
+      useSuggestedPriceRange &&
+      suggestedMinInCents != null &&
+      suggestedMaxInCents != null &&
+      suggestedMaxInCents < suggestedMinInCents
+    ) {
+      toast.error("Suggested maximum must be at least the minimum")
+      return
+    }
+
     setSaving(true)
 
     try {
@@ -234,6 +283,9 @@ export default function AdminPage() {
         description: description.trim() || null,
         image: image.trim() || null,
         price: priceInCents,
+        suggestedMinPrice: suggestedMinInCents,
+        suggestedMaxPrice: suggestedMaxInCents,
+        useSuggestedPriceRange,
         allergens: allergens.trim() || null,
         available,
         modifiers: modifiers
@@ -363,8 +415,9 @@ export default function AdminPage() {
                   Hide prices until cart
                 </Label>
                 <p className="text-sm text-muted-foreground">
-                  Hide item and modifier prices while customers browse. The
-                  full amount will still be shown in the cart.
+                  Hide exact prices, suggested ranges, and modifier prices
+                  while customers browse. Pricing will still be shown in the
+                  cart.
                 </p>
               </div>
             </div>
@@ -427,9 +480,23 @@ export default function AdminPage() {
                             <Badge variant="secondary">Hidden</Badge>
                           )}
                         </div>
-                        <span className="font-semibold">
-                          {formatPrice(item.price)}
-                        </span>
+                        <div className="text-right">
+                          <p className="font-semibold">
+                            {item.useSuggestedPriceRange &&
+                            item.suggestedMinPrice != null &&
+                            item.suggestedMaxPrice != null
+                              ? `Suggested ${formatPriceRange(
+                                  item.suggestedMinPrice,
+                                  item.suggestedMaxPrice
+                                )}`
+                              : formatPrice(item.price)}
+                          </p>
+                          {item.useSuggestedPriceRange && (
+                            <p className="text-xs text-muted-foreground">
+                              Actual {formatPrice(item.price)}
+                            </p>
+                          )}
+                        </div>
                       </div>
                     </CardHeader>
                     <CardContent>
@@ -530,6 +597,65 @@ export default function AdminPage() {
                 step="0.01"
                 min="0"
               />
+              <p className="text-sm text-muted-foreground">
+                Used to calculate and record the actual order total.
+              </p>
+            </div>
+
+            <div className="rounded-xl border bg-muted/40 p-4">
+              <div className="flex items-start gap-3">
+                <input
+                  type="checkbox"
+                  id="useSuggestedPriceRange"
+                  checked={useSuggestedPriceRange}
+                  onChange={(e) =>
+                    setUseSuggestedPriceRange(e.target.checked)
+                  }
+                  className="mt-1 h-4 w-4"
+                />
+                <div className="space-y-1">
+                  <Label htmlFor="useSuggestedPriceRange">
+                    Show a suggested price range
+                  </Label>
+                  <p className="text-sm text-muted-foreground">
+                    Customers will see the range on the menu and at checkout
+                    instead of the exact price.
+                  </p>
+                </div>
+              </div>
+
+              {useSuggestedPriceRange && (
+                <div className="mt-4 grid grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="suggestedMinPrice">
+                      Suggested minimum
+                    </Label>
+                    <Input
+                      id="suggestedMinPrice"
+                      value={suggestedMinPrice}
+                      onChange={(e) => setSuggestedMinPrice(e.target.value)}
+                      placeholder="0.00"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="suggestedMaxPrice">
+                      Suggested maximum
+                    </Label>
+                    <Input
+                      id="suggestedMaxPrice"
+                      value={suggestedMaxPrice}
+                      onChange={(e) => setSuggestedMaxPrice(e.target.value)}
+                      placeholder="0.00"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                    />
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="space-y-2">

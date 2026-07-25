@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { useCart } from "@/hooks/use-cart"
-import { formatPrice } from "@/lib/format"
+import { formatPriceRange } from "@/lib/format"
 import { toast } from "sonner"
 
 export default function CartPage() {
@@ -96,7 +96,10 @@ export default function CartPage() {
                 <div className="flex justify-between items-start">
                   <CardTitle className="text-lg">{item.name}</CardTitle>
                   <span className="font-semibold">
-                    {formatPrice(cart.getItemTotal(item))}
+                    {formatPriceRange(
+                      cart.getItemPriceRange(item).min,
+                      cart.getItemPriceRange(item).max
+                    )}
                   </span>
                 </div>
               </CardHeader>
@@ -142,8 +145,17 @@ export default function CartPage() {
         <Separator className="my-6" />
 
         <div className="flex justify-between items-center text-xl font-bold mb-6">
-          <span>Total</span>
-          <span>{formatPrice(cart.getTotal())}</span>
+          <span>
+            {cart.getTotalPriceRange().min === cart.getTotalPriceRange().max
+              ? "Total"
+              : "Suggested total"}
+          </span>
+          <span>
+            {formatPriceRange(
+              cart.getTotalPriceRange().min,
+              cart.getTotalPriceRange().max
+            )}
+          </span>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -165,7 +177,12 @@ export default function CartPage() {
             size="lg"
             disabled={submitting}
           >
-            {submitting ? "Placing Order..." : `Place Order - ${formatPrice(cart.getTotal())}`}
+            {submitting
+              ? "Placing Order..."
+              : `Place Order - ${formatPriceRange(
+                  cart.getTotalPriceRange().min,
+                  cart.getTotalPriceRange().max
+                )}`}
           </Button>
         </form>
       </div>

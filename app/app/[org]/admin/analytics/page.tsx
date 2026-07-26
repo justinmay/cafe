@@ -15,6 +15,15 @@ import {
   RefreshCw,
   Sparkles,
 } from "lucide-react"
+import {
+  CartesianGrid,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -79,6 +88,15 @@ interface AnalyticsData {
     orderValueMin: number
     orderValueMax: number
   }[]
+}
+
+type HourlyChartPoint = {
+  hour: number
+  orders: number
+  orderValueMin: number
+  orderValueMax: number
+  totalItems: number
+  [itemId: string]: number
 }
 
 const ITEM_COLORS = [
@@ -190,16 +208,30 @@ function LoadingState() {
 }
 
 function HourlyItemChart({ data }: { data: AnalyticsData }) {
-  const maxHourlyItems = Math.max(
-    ...data.hourlyStats.map((hour) => hour.totalItems),
-    1
-  )
   const seriesColors = new Map(
     data.itemSeries.map((series, index) => [
       series.id,
       ITEM_COLORS[index % ITEM_COLORS.length],
     ])
   )
+  const seriesNames = new Map(
+    data.itemSeries.map((series) => [series.id, series.name])
+  )
+  const chartData = data.hourlyStats.map((hour) => {
+    const point: HourlyChartPoint = {
+      hour: hour.hour,
+      orders: hour.orders,
+      orderValueMin: hour.orderValueMin,
+      orderValueMax: hour.orderValueMax,
+      totalItems: hour.totalItems,
+    }
+
+    for (const item of hour.items) {
+      point[item.id] = item.quantity
+    }
+
+    return point
+  })
 
   if (data.hourlyStats.length === 0) {
     return (
@@ -214,109 +246,127 @@ function HourlyItemChart({ data }: { data: AnalyticsData }) {
 
   return (
     <>
-      <div className="overflow-x-auto pb-3">
-        <div
-          className="flex h-72 items-stretch gap-2 border-b border-l px-3 pt-5"
-          style={{
-            minWidth: `${Math.max(560, data.hourlyStats.length * 72)}px`,
-          }}
-          role="img"
-          aria-label={`Items sold by hour on ${formatPopupDate(data.date)}`}
-        >
-          {data.hourlyStats.map((hour) => {
-            const barHeight = Math.max(
-              (hour.totalItems / maxHourlyItems) * 100,
-              hour.totalItems > 0 ? 4 : 1
-            )
+      <div
+        className="h-80 w-full"
+        role="img"
+        aria-label={`Items sold by hour on ${formatPopupDate(data.date)}`}
+      >
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart
+            data={chartData}
+            margin={{ top: 12, right: 12, bottom: 4, left: 0 }}
+            accessibilityLayer
+          >
+            <CartesianGrid
+              vertical={false}
+              stroke="var(--border)"
+              strokeDasharray="4 4"
+            />
+            <XAxis
+              dataKey="hour"
+              tickFormatter={(hour) => formatHour(Number(hour))}
+              tickLine={false}
+              axisLine={false}
+              tickMargin={10}
+              minTickGap={24}
+            />
+            <YAxis
+              allowDecimals={false}
+              tickLine={false}
+              axisLine={false}
+              tickMargin={8}
+              width={28}
+            />
+            <Tooltip
+              cursor={{
+                stroke: "var(--muted-foreground)",
+                strokeDasharray: "4 4",
+                strokeOpacity: 0.5,
+              }}
+              content={({ active, label, payload }) => {
+                if (!active || !payload?.length) return null
 
-            return (
-              <div
-                key={hour.hour}
-                className="flex min-w-14 flex-1 flex-col"
-              >
-                <div className="flex min-h-0 flex-1 items-end justify-center">
-                  <div
-                    className="group relative w-10 outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    style={{ height: `${barHeight}%` }}
-                    tabIndex={0}
-                  >
-                    <div className="flex h-full flex-col-reverse overflow-hidden rounded-t-md bg-muted">
-                      {hour.items.map((item) =>
-                        item.quantity > 0 ? (
-                          <div
-                            key={item.id}
-                            style={{
-                              height: `${(item.quantity / hour.totalItems) * 100}%`,
-                              backgroundColor: seriesColors.get(item.id),
-                            }}
-                          />
-                        ) : null
-                      )}
-                    </div>
-                    <span className="absolute bottom-full left-1/2 mb-1 -translate-x-1/2 text-[0.65rem] font-semibold tabular-nums text-muted-foreground">
-                      {hour.orders}
-                    </span>
-                    <div className="pointer-events-none absolute bottom-full left-1/2 z-20 mb-7 hidden w-44 -translate-x-1/2 rounded-lg bg-foreground p-2.5 text-xs text-background shadow-xl group-hover:block group-focus:block">
-                      <p className="font-semibold">
-                        {formatHourRange(hour.hour)}
-                      </p>
-                      <p className="mt-1 opacity-75">
-                        {hour.orders}{" "}
-                        {hour.orders === 1 ? "order" : "orders"} ·{" "}
-                        {hour.totalItems} items ·{" "}
-                        {formatPriceRange(
-                          hour.orderValueMin,
-                          hour.orderValueMax
-                        )}
-                      </p>
-                      <div className="mt-2 space-y-1">
-                        {hour.items.map((item) => {
-                          const series = data.itemSeries.find(
-                            (entry) => entry.id === item.id
-                          )
-                          return item.quantity > 0 ? (
-                            <p
-                              key={item.id}
-                              className="flex justify-between gap-3"
-                            >
-                              <span className="truncate opacity-75">
-                                {series?.name}
-                              </span>
-                              <span className="font-medium tabular-nums">
-                                {item.quantity}
-                              </span>
-                            </p>
-                          ) : null
-                        })}
-                      </div>
-                    </div>
-                    <span className="sr-only">
-                      {formatHourRange(hour.hour)}: {hour.orders} orders,{" "}
-                      {hour.totalItems} items,{" "}
+                const point = payload[0]?.payload as
+                  | HourlyChartPoint
+                  | undefined
+                if (!point) return null
+
+                return (
+                  <div className="min-w-48 rounded-lg border bg-background p-3 text-xs shadow-xl">
+                    <p className="font-semibold text-foreground">
+                      {formatHourRange(Number(label))}
+                    </p>
+                    <p className="mt-1 text-muted-foreground">
+                      {point.orders}{" "}
+                      {point.orders === 1 ? "order" : "orders"} ·{" "}
+                      {point.totalItems} items ·{" "}
                       {formatPriceRange(
-                        hour.orderValueMin,
-                        hour.orderValueMax
+                        point.orderValueMin,
+                        point.orderValueMax
                       )}
-                    </span>
+                    </p>
+                    <div className="mt-2 space-y-1.5">
+                      {payload.map((entry) => {
+                        const itemId = String(entry.dataKey)
+                        const quantity = Number(entry.value ?? 0)
+                        if (quantity === 0) return null
+
+                        return (
+                          <p
+                            key={itemId}
+                            className="flex items-center justify-between gap-4"
+                          >
+                            <span className="flex min-w-0 items-center gap-2 text-muted-foreground">
+                              <span
+                                className="size-2 shrink-0 rounded-full"
+                                style={{
+                                  backgroundColor: seriesColors.get(itemId),
+                                }}
+                              />
+                              <span className="truncate">
+                                {seriesNames.get(itemId)}
+                              </span>
+                            </span>
+                            <span className="font-medium tabular-nums text-foreground">
+                              {quantity}
+                            </span>
+                          </p>
+                        )
+                      })}
+                    </div>
                   </div>
-                </div>
-                <span className="h-9 pt-2 text-center text-[0.68rem] text-muted-foreground">
-                  {formatHour(hour.hour)}
-                </span>
-              </div>
-            )
-          })}
-        </div>
+                )
+              }}
+            />
+            {data.itemSeries.map((series, index) => (
+              <Line
+                key={series.id}
+                type="monotone"
+                dataKey={series.id}
+                name={series.name}
+                stroke={ITEM_COLORS[index % ITEM_COLORS.length]}
+                strokeWidth={2.5}
+                dot={{
+                  r: 3,
+                  fill: "var(--background)",
+                  strokeWidth: 2,
+                }}
+                activeDot={{ r: 5 }}
+                isAnimationActive={false}
+              />
+            ))}
+          </LineChart>
+        </ResponsiveContainer>
       </div>
 
-      <div className="mt-2 flex flex-wrap gap-x-4 gap-y-2">
+      <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2">
         {data.itemSeries.map((series, index) => (
           <div
             key={series.id}
             className="flex items-center gap-1.5 text-xs text-muted-foreground"
           >
             <span
-              className="size-2.5 rounded-sm"
+              className="h-0.5 w-5 rounded-full"
               style={{
                 backgroundColor: ITEM_COLORS[index % ITEM_COLORS.length],
               }}
@@ -326,8 +376,8 @@ function HourlyItemChart({ data }: { data: AnalyticsData }) {
         ))}
       </div>
       <p className="mt-4 text-xs text-muted-foreground">
-        Bar height shows total items. The number above each bar is the order
-        count.
+        Each line shows an item&apos;s hourly quantity. Hover or focus the
+        chart for total orders and order value.
       </p>
     </>
   )

@@ -10,6 +10,7 @@ import { formatPrice } from "@/lib/format"
 import { toast } from "sonner"
 import {
   ArrowLeftIcon,
+  BarChart3Icon,
   ChefHatIcon,
   CircleCheckIcon,
   CircleIcon,
@@ -604,16 +605,28 @@ export default function OrdersPage() {
                 ))}
               </div>
 
-              <Button
-                asChild
-                variant="outline"
-                className="h-10 border-white/20 bg-white/5 px-3.5 text-[#fffaf4] hover:bg-white/10 hover:text-white"
-              >
-                <Link href={`/${org}/admin`}>
-                  <Settings2Icon aria-hidden="true" />
-                  Admin
-                </Link>
-              </Button>
+              <div className="grid grid-cols-2 gap-2 sm:flex">
+                <Button
+                  asChild
+                  variant="outline"
+                  className="h-10 border-white/20 bg-white/5 px-3.5 text-[#fffaf4] hover:bg-white/10 hover:text-white"
+                >
+                  <Link href={`/${org}/admin/analytics`}>
+                    <BarChart3Icon aria-hidden="true" />
+                    Analytics
+                  </Link>
+                </Button>
+                <Button
+                  asChild
+                  variant="outline"
+                  className="h-10 border-white/20 bg-white/5 px-3.5 text-[#fffaf4] hover:bg-white/10 hover:text-white"
+                >
+                  <Link href={`/${org}/admin`}>
+                    <Settings2Icon aria-hidden="true" />
+                    Admin
+                  </Link>
+                </Button>
+              </div>
             </div>
           </div>
         </header>

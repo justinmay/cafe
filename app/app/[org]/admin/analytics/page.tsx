@@ -25,7 +25,7 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
-import { formatPrice } from "@/lib/format"
+import { formatPriceRange } from "@/lib/format"
 
 interface AnalyticsData {
   date: string
@@ -33,9 +33,13 @@ interface AnalyticsData {
   previousDate: string | null
   nextDate: string | null
   summary: {
-    grossSales: number
+    orderValueMin: number
+    orderValueMax: number
+    hasSuggestedPricing: boolean
+    hasUncapturedPricing: boolean
     orders: number
-    averageOrderValue: number
+    averageOrderValueMin: number
+    averageOrderValueMax: number
     itemsSold: number
   }
   service: {
@@ -60,7 +64,8 @@ interface AnalyticsData {
   hourlyStats: {
     hour: number
     orders: number
-    grossSales: number
+    orderValueMin: number
+    orderValueMax: number
     totalItems: number
     items: {
       id: string
@@ -71,7 +76,8 @@ interface AnalyticsData {
     id: string
     name: string
     quantity: number
-    grossSales: number
+    orderValueMin: number
+    orderValueMax: number
   }[]
 }
 
@@ -258,7 +264,10 @@ function HourlyItemChart({ data }: { data: AnalyticsData }) {
                         {hour.orders}{" "}
                         {hour.orders === 1 ? "order" : "orders"} ·{" "}
                         {hour.totalItems} items ·{" "}
-                        {formatPrice(hour.grossSales)}
+                        {formatPriceRange(
+                          hour.orderValueMin,
+                          hour.orderValueMax
+                        )}
                       </p>
                       <div className="mt-2 space-y-1">
                         {hour.items.map((item) => {
@@ -283,7 +292,11 @@ function HourlyItemChart({ data }: { data: AnalyticsData }) {
                     </div>
                     <span className="sr-only">
                       {formatHourRange(hour.hour)}: {hour.orders} orders,{" "}
-                      {hour.totalItems} items, {formatPrice(hour.grossSales)}
+                      {hour.totalItems} items,{" "}
+                      {formatPriceRange(
+                        hour.orderValueMin,
+                        hour.orderValueMax
+                      )}
                     </span>
                   </div>
                 </div>
@@ -570,9 +583,22 @@ export default function AnalyticsPage() {
         <div className="space-y-6">
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <SummaryCard
-              label="Gross sales"
-              value={formatPrice(data.summary.grossSales)}
-              description="Order totals recorded; payment status is not tracked."
+              label={
+                data.summary.hasSuggestedPricing
+                  ? "Suggested order value"
+                  : "Order value"
+              }
+              value={formatPriceRange(
+                data.summary.orderValueMin,
+                data.summary.orderValueMax
+              )}
+              description={
+                data.summary.hasUncapturedPricing
+                  ? "Legacy orders use their stored configured-price fallback."
+                  : data.summary.hasSuggestedPricing
+                  ? "Customer-visible range; actual payments are not tracked."
+                  : "Configured order totals; payment status is not tracked."
+              }
               icon={CircleDollarSign}
             />
             <SummaryCard
@@ -583,8 +609,11 @@ export default function AnalyticsPage() {
             />
             <SummaryCard
               label="Average order"
-              value={formatPrice(data.summary.averageOrderValue)}
-              description="Gross sales divided by orders."
+              value={formatPriceRange(
+                data.summary.averageOrderValueMin,
+                data.summary.averageOrderValueMax
+              )}
+              description="Order-value range divided by orders."
               icon={Gauge}
             />
             <SummaryCard
@@ -668,7 +697,10 @@ export default function AnalyticsPage() {
                             {item.quantity} sold · {share}%
                           </p>
                           <p className="text-xs tabular-nums text-muted-foreground">
-                            {formatPrice(item.grossSales)}
+                            {formatPriceRange(
+                              item.orderValueMin,
+                              item.orderValueMax
+                            )}
                           </p>
                         </div>
                       </li>
@@ -696,7 +728,8 @@ export default function AnalyticsPage() {
                 className="mt-0.5 size-3.5 shrink-0"
                 aria-hidden="true"
               />
-              Gross sales are order totals, not confirmed payments.
+              Values preserve fixed totals or suggested ranges; payments are
+              not tracked. Legacy orders may predate range capture.
             </p>
           </div>
         </div>

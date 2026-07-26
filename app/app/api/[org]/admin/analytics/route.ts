@@ -116,20 +116,21 @@ export async function GET(
         },
       },
       select: {
-        total: true,
+        totalMin: true,
+        totalMax: true,
         status: true,
         createdAt: true,
         updatedAt: true,
         items: {
           select: {
             quantity: true,
-            unitPrice: true,
+            unitPriceMin: true,
+            unitPriceMax: true,
+            usesSuggestedPriceRange: true,
+            priceRangeCaptured: true,
             menuItemId: true,
             menuItem: {
               select: { name: true },
-            },
-            modifiers: {
-              select: { priceAdjustment: true },
             },
           },
         },
@@ -140,20 +141,40 @@ export async function GET(
       (order) => getDateKey(order.createdAt, timeZone) === selectedDate
     )
 
-    const grossSales = orders.reduce((sum, order) => sum + order.total, 0)
+    const orderValueMin = orders.reduce(
+      (sum, order) => sum + order.totalMin,
+      0
+    )
+    const orderValueMax = orders.reduce(
+      (sum, order) => sum + order.totalMax,
+      0
+    )
+    const hasSuggestedPricing = orders.some((order) =>
+      order.items.some((item) => item.usesSuggestedPriceRange)
+    )
+    const hasUncapturedPricing = orders.some((order) =>
+      order.items.some((item) => !item.priceRangeCaptured)
+    )
     const orderItemCounts = orders.map((order) =>
       order.items.reduce((sum, item) => sum + item.quantity, 0)
     )
     const itemsSold = orderItemCounts.reduce((sum, count) => sum + count, 0)
     const itemSales = new Map<
       string,
-      { id: string; name: string; quantity: number; grossSales: number }
+      {
+        id: string
+        name: string
+        quantity: number
+        orderValueMin: number
+        orderValueMax: number
+      }
     >()
     const hourlyTotals = new Map<
       number,
       {
         orders: number
-        grossSales: number
+        orderValueMin: number
+        orderValueMax: number
         itemQuantities: Map<string, number>
       }
     >()
@@ -162,25 +183,26 @@ export async function GET(
       const hour = getHour(order.createdAt, timeZone)
       const hourData = hourlyTotals.get(hour) ?? {
         orders: 0,
-        grossSales: 0,
+        orderValueMin: 0,
+        orderValueMax: 0,
         itemQuantities: new Map<string, number>(),
       }
       hourData.orders += 1
-      hourData.grossSales += order.total
+      hourData.orderValueMin += order.totalMin
+      hourData.orderValueMax += order.totalMax
 
       for (const item of order.items) {
-        const modifiersTotal = item.modifiers.reduce(
-          (sum, modifier) => sum + modifier.priceAdjustment,
-          0
-        )
-        const itemGrossSales =
-          (item.unitPrice + modifiersTotal) * item.quantity
         const existing = itemSales.get(item.menuItemId)
         itemSales.set(item.menuItemId, {
           id: item.menuItemId,
           name: item.menuItem.name,
           quantity: (existing?.quantity ?? 0) + item.quantity,
-          grossSales: (existing?.grossSales ?? 0) + itemGrossSales,
+          orderValueMin:
+            (existing?.orderValueMin ?? 0) +
+            item.unitPriceMin * item.quantity,
+          orderValueMax:
+            (existing?.orderValueMax ?? 0) +
+            item.unitPriceMax * item.quantity,
         })
         hourData.itemQuantities.set(
           item.menuItemId,
@@ -194,7 +216,7 @@ export async function GET(
     const rankedItems = [...itemSales.values()].sort(
       (first, second) =>
         second.quantity - first.quantity ||
-        second.grossSales - first.grossSales
+        second.orderValueMax - first.orderValueMax
     )
     const primarySeries = rankedItems.slice(0, 5).map((item) => ({
       id: item.id,
@@ -233,7 +255,8 @@ export async function GET(
               return {
                 hour,
                 orders: totals?.orders ?? 0,
-                grossSales: totals?.grossSales ?? 0,
+                orderValueMin: totals?.orderValueMin ?? 0,
+                orderValueMax: totals?.orderValueMax ?? 0,
                 totalItems: totals
                   ? [...totals.itemQuantities.values()].reduce(
                       (sum, quantity) => sum + quantity,
@@ -276,10 +299,15 @@ export async function GET(
       previousDate,
       nextDate,
       summary: {
-        grossSales,
+        orderValueMin,
+        orderValueMax,
+        hasSuggestedPricing,
+        hasUncapturedPricing,
         orders: orders.length,
-        averageOrderValue:
-          orders.length > 0 ? Math.round(grossSales / orders.length) : 0,
+        averageOrderValueMin:
+          orders.length > 0 ? Math.round(orderValueMin / orders.length) : 0,
+        averageOrderValueMax:
+          orders.length > 0 ? Math.round(orderValueMax / orders.length) : 0,
         itemsSold,
       },
       service: {

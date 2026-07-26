@@ -117,21 +117,47 @@ export async function POST(
       }
     }
 
-    // Calculate total
+    // Snapshot both the configured price and the customer-visible range.
+    // Suggested pricing is not an exact charge, so downstream reporting must
+    // preserve both bounds instead of silently using MenuItem.price.
     let total = 0
+    let totalMin = 0
+    let totalMax = 0
     const orderItemsData = items.map((item) => {
       const menuItem = menuItemMap.get(item.menuItemId)!
       const modifiersTotal = item.modifiers.reduce((sum, mod) => {
         const option = optionMap.get(mod.optionId)!
         return sum + option.priceAdjustment
       }, 0)
-      const unitPrice = menuItem.price + modifiersTotal
+      const usesSuggestedPriceRange =
+        menuItem.useSuggestedPriceRange &&
+        menuItem.suggestedMinPrice != null &&
+        menuItem.suggestedMaxPrice != null
+      const unitPrice = Math.max(0, menuItem.price + modifiersTotal)
+      const unitPriceMin = Math.max(
+        0,
+        (usesSuggestedPriceRange
+          ? menuItem.suggestedMinPrice!
+          : menuItem.price) + modifiersTotal
+      )
+      const unitPriceMax = Math.max(
+        0,
+        (usesSuggestedPriceRange
+          ? menuItem.suggestedMaxPrice!
+          : menuItem.price) + modifiersTotal
+      )
       total += unitPrice * item.quantity
+      totalMin += unitPriceMin * item.quantity
+      totalMax += unitPriceMax * item.quantity
 
       return {
         menuItemId: item.menuItemId,
         quantity: item.quantity,
         unitPrice,
+        unitPriceMin,
+        unitPriceMax,
+        usesSuggestedPriceRange,
+        priceRangeCaptured: true,
         modifiers: item.modifiers.map((mod) => ({
           modifierOptionId: mod.optionId,
           priceAdjustment: optionMap.get(mod.optionId)!.priceAdjustment,
@@ -144,12 +170,18 @@ export async function POST(
       data: {
         customerName,
         total,
+        totalMin,
+        totalMax,
         organizationId: organization.id,
         items: {
           create: orderItemsData.map((item) => ({
             menuItemId: item.menuItemId,
             quantity: item.quantity,
             unitPrice: item.unitPrice,
+            unitPriceMin: item.unitPriceMin,
+            unitPriceMax: item.unitPriceMax,
+            usesSuggestedPriceRange: item.usesSuggestedPriceRange,
+            priceRangeCaptured: item.priceRangeCaptured,
             modifiers: {
               create: item.modifiers,
             },

@@ -199,17 +199,14 @@ export default function MenuPage() {
       }
 
       const order = await res.json()
-      const priceRange = cart.getTotalPriceRange()
-      const usesSuggestedPrice = cart.items.some(
-        (item) =>
-          item.useSuggestedPriceRange &&
-          item.suggestedMinPrice != null &&
-          item.suggestedMaxPrice != null
+      const usesSuggestedPrice = order.items.some(
+        (item: { usesSuggestedPriceRange: boolean }) =>
+          item.usesSuggestedPriceRange
       )
       const confirmationParams = new URLSearchParams({
         orderNumber: String(order.orderNumber),
-        priceMin: String(priceRange.min),
-        priceMax: String(priceRange.max),
+        priceMin: String(order.totalMin),
+        priceMax: String(order.totalMax),
       })
 
       if (usesSuggestedPrice) {

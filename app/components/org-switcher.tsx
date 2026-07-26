@@ -60,7 +60,7 @@ export function OrgSwitcher() {
 
       router.push(`/${org.slug}/admin`)
       router.refresh()
-    } catch (error) {
+    } catch {
       toast.error("Failed to switch organization")
     } finally {
       setLoading(false)
@@ -69,7 +69,7 @@ export function OrgSwitcher() {
 
   if (orgs.length <= 1) {
     return (
-      <span className="text-xl font-bold">
+      <span className="block truncate text-xl font-bold">
         {currentOrg?.name || currentSlug}
       </span>
     )
@@ -78,8 +78,12 @@ export function OrgSwitcher() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="gap-1 text-xl font-bold" disabled={loading}>
-          {currentOrg?.name || currentSlug}
+        <Button
+          variant="ghost"
+          className="max-w-full justify-start gap-1 overflow-hidden text-xl font-bold"
+          disabled={loading}
+        >
+          <span className="truncate">{currentOrg?.name || currentSlug}</span>
           <ChevronDown className="h-4 w-4" />
         </Button>
       </DropdownMenuTrigger>

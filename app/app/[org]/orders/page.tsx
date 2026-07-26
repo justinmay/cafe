@@ -6,10 +6,11 @@ import { useParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
-import { formatPrice } from "@/lib/format"
+import { formatPriceRange } from "@/lib/format"
 import { toast } from "sonner"
 import {
   ArrowLeftIcon,
+  BarChart3Icon,
   ChefHatIcon,
   CircleCheckIcon,
   CircleIcon,
@@ -32,6 +33,9 @@ interface OrderItem {
   id: string
   quantity: number
   unitPrice: number
+  unitPriceMin: number
+  unitPriceMax: number
+  usesSuggestedPriceRange: boolean
   completed: boolean
   menuItem: {
     name: string
@@ -45,6 +49,8 @@ interface Order {
   customerName: string
   status: "RECEIVED" | "PREPARING" | "READY"
   total: number
+  totalMin: number
+  totalMax: number
   createdAt: string
   updatedAt: string
   items: OrderItem[]
@@ -156,6 +162,9 @@ function OrderTicket({
   const progress =
     totalItems === 0 ? 0 : Math.round((completedItems / totalItems) * 100)
   const statusStyle = STATUS_STYLES[order.status]
+  const usesSuggestedPrice = order.items.some(
+    (item) => item.usesSuggestedPriceRange
+  )
 
   return (
     <Card
@@ -272,7 +281,8 @@ function OrderTicket({
 
       <div className="flex items-center gap-2 bg-muted/20 px-3.5 py-2.5">
         <span className="mr-auto text-xs font-semibold tabular-nums text-muted-foreground">
-          {formatPrice(order.total)}
+          {usesSuggestedPrice && "Suggested "}
+          {formatPriceRange(order.totalMin, order.totalMax)}
         </span>
 
         {order.status === "RECEIVED" && (
@@ -604,16 +614,28 @@ export default function OrdersPage() {
                 ))}
               </div>
 
-              <Button
-                asChild
-                variant="outline"
-                className="h-10 border-white/20 bg-white/5 px-3.5 text-[#fffaf4] hover:bg-white/10 hover:text-white"
-              >
-                <Link href={`/${org}/admin`}>
-                  <Settings2Icon aria-hidden="true" />
-                  Admin
-                </Link>
-              </Button>
+              <div className="grid grid-cols-2 gap-2 sm:flex">
+                <Button
+                  asChild
+                  variant="outline"
+                  className="h-10 border-white/20 bg-white/5 px-3.5 text-[#fffaf4] hover:bg-white/10 hover:text-white"
+                >
+                  <Link href={`/${org}/admin/analytics`}>
+                    <BarChart3Icon aria-hidden="true" />
+                    Analytics
+                  </Link>
+                </Button>
+                <Button
+                  asChild
+                  variant="outline"
+                  className="h-10 border-white/20 bg-white/5 px-3.5 text-[#fffaf4] hover:bg-white/10 hover:text-white"
+                >
+                  <Link href={`/${org}/admin`}>
+                    <Settings2Icon aria-hidden="true" />
+                    Admin
+                  </Link>
+                </Button>
+              </div>
             </div>
           </div>
         </header>

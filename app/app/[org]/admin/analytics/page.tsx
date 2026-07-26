@@ -10,6 +10,7 @@ import {
   Clock3,
   Gauge,
   Layers3,
+  ListFilter,
   PackageCheck,
   ReceiptText,
   RefreshCw,
@@ -19,6 +20,7 @@ import {
   CartesianGrid,
   Line,
   LineChart,
+  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -33,6 +35,15 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Skeleton } from "@/components/ui/skeleton"
 import { formatPriceRange } from "@/lib/format"
 
@@ -75,6 +86,8 @@ interface AnalyticsData {
     orders: number
     orderValueMin: number
     orderValueMax: number
+    fulfilledOrders: number
+    medianFulfillmentMinutes: number | null
     totalItems: number
     items: {
       id: string
@@ -105,7 +118,13 @@ const ITEM_COLORS = [
   "oklch(0.57 0.1 155)",
   "oklch(0.58 0.1 235)",
   "oklch(0.62 0.12 310)",
-  "oklch(0.76 0.02 70)",
+  "oklch(0.59 0.11 185)",
+  "oklch(0.67 0.14 95)",
+  "oklch(0.62 0.13 345)",
+  "oklch(0.56 0.13 275)",
+  "oklch(0.58 0.08 45)",
+  "oklch(0.67 0.1 210)",
+  "oklch(0.61 0.09 125)",
 ]
 
 function formatPopupDate(date: string) {
@@ -199,6 +218,7 @@ function LoadingState() {
         ))}
       </div>
       <Skeleton className="h-[28rem] rounded-xl" />
+      <Skeleton className="h-[24rem] rounded-xl" />
       <div className="grid gap-6 lg:grid-cols-2">
         <Skeleton className="h-72 rounded-xl" />
         <Skeleton className="h-72 rounded-xl" />
@@ -208,6 +228,10 @@ function LoadingState() {
 }
 
 function HourlyItemChart({ data }: { data: AnalyticsData }) {
+  const [selectedItemIds, setSelectedItemIds] = useState(() =>
+    data.itemSeries.map((series) => series.id)
+  )
+
   const seriesColors = new Map(
     data.itemSeries.map((series, index) => [
       series.id,
@@ -216,6 +240,9 @@ function HourlyItemChart({ data }: { data: AnalyticsData }) {
   )
   const seriesNames = new Map(
     data.itemSeries.map((series) => [series.id, series.name])
+  )
+  const selectedSeries = data.itemSeries.filter((series) =>
+    selectedItemIds.includes(series.id)
   )
   const chartData = data.hourlyStats.map((hour) => {
     const point: HourlyChartPoint = {
@@ -232,6 +259,13 @@ function HourlyItemChart({ data }: { data: AnalyticsData }) {
 
     return point
   })
+  const toggleSeries = (itemId: string) => {
+    setSelectedItemIds((current) =>
+      current.includes(itemId)
+        ? current.filter((id) => id !== itemId)
+        : [...current, itemId]
+    )
+  }
 
   if (data.hourlyStats.length === 0) {
     return (
@@ -246,10 +280,237 @@ function HourlyItemChart({ data }: { data: AnalyticsData }) {
 
   return (
     <>
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <p className="text-xs text-muted-foreground">
+          {selectedSeries.length} of {data.itemSeries.length} items shown
+        </p>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="outline"
+              size="sm"
+              aria-label="Filter items shown in the hourly sales chart"
+            >
+              <ListFilter aria-hidden="true" />
+              Filter items
+              <Badge variant="secondary" className="ml-1">
+                {selectedSeries.length}
+              </Badge>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-72">
+            <DropdownMenuLabel>Items shown</DropdownMenuLabel>
+            <DropdownMenuItem
+              disabled={selectedSeries.length === data.itemSeries.length}
+              onSelect={() =>
+                setSelectedItemIds(
+                  data.itemSeries.map((series) => series.id)
+                )
+              }
+            >
+              Show all items
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            {data.itemSeries.map((series, index) => (
+              <DropdownMenuCheckboxItem
+                key={series.id}
+                checked={selectedItemIds.includes(series.id)}
+                onCheckedChange={() => toggleSeries(series.id)}
+                onSelect={(event) => event.preventDefault()}
+              >
+                <span
+                  className="size-2.5 shrink-0 rounded-full"
+                  style={{
+                    backgroundColor:
+                      ITEM_COLORS[index % ITEM_COLORS.length],
+                  }}
+                />
+                <span className="truncate">{series.name}</span>
+              </DropdownMenuCheckboxItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+
+      {selectedSeries.length === 0 ? (
+        <div className="rounded-xl border border-dashed px-6 py-14 text-center">
+          <p className="font-medium">Choose an item to graph</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Use Filter items to select one or more menu items.
+          </p>
+        </div>
+      ) : (
+        <div
+          className="h-80 w-full"
+          role="img"
+          aria-label={`Items sold by hour on ${formatPopupDate(data.date)}`}
+        >
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart
+              data={chartData}
+              margin={{ top: 12, right: 12, bottom: 4, left: 0 }}
+              accessibilityLayer
+            >
+              <CartesianGrid
+                vertical={false}
+                stroke="var(--border)"
+                strokeDasharray="4 4"
+              />
+              <XAxis
+                dataKey="hour"
+                tickFormatter={(hour) => formatHour(Number(hour))}
+                tickLine={false}
+                axisLine={false}
+                tickMargin={10}
+                minTickGap={24}
+              />
+              <YAxis
+                allowDecimals={false}
+                tickLine={false}
+                axisLine={false}
+                tickMargin={8}
+                width={28}
+              />
+              <Tooltip
+                cursor={{
+                  stroke: "var(--muted-foreground)",
+                  strokeDasharray: "4 4",
+                  strokeOpacity: 0.5,
+                }}
+                content={({ active, label, payload }) => {
+                  if (!active || !payload?.length) return null
+
+                  const point = payload[0]?.payload as
+                    | HourlyChartPoint
+                    | undefined
+                  if (!point) return null
+
+                  return (
+                    <div className="min-w-48 rounded-lg border bg-background p-3 text-xs shadow-xl">
+                      <p className="font-semibold text-foreground">
+                        {formatHourRange(Number(label))}
+                      </p>
+                      <p className="mt-1 text-muted-foreground">
+                        {point.orders}{" "}
+                        {point.orders === 1 ? "order" : "orders"} ·{" "}
+                        {point.totalItems} items ·{" "}
+                        {formatPriceRange(
+                          point.orderValueMin,
+                          point.orderValueMax
+                        )}
+                      </p>
+                      <div className="mt-2 space-y-1.5">
+                        {payload.map((entry) => {
+                          const itemId = String(entry.dataKey)
+                          const quantity = Number(entry.value ?? 0)
+                          if (quantity === 0) return null
+
+                          return (
+                            <p
+                              key={itemId}
+                              className="flex items-center justify-between gap-4"
+                            >
+                              <span className="flex min-w-0 items-center gap-2 text-muted-foreground">
+                                <span
+                                  className="size-2 shrink-0 rounded-full"
+                                  style={{
+                                    backgroundColor:
+                                      seriesColors.get(itemId),
+                                  }}
+                                />
+                                <span className="truncate">
+                                  {seriesNames.get(itemId)}
+                                </span>
+                              </span>
+                              <span className="font-medium tabular-nums text-foreground">
+                                {quantity}
+                              </span>
+                            </p>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )
+                }}
+              />
+              {selectedSeries.map((series) => (
+                <Line
+                  key={series.id}
+                  type="monotone"
+                  dataKey={series.id}
+                  name={series.name}
+                  stroke={seriesColors.get(series.id)}
+                  strokeWidth={2.5}
+                  dot={{
+                    r: 3,
+                    fill: "var(--background)",
+                    strokeWidth: 2,
+                  }}
+                  activeDot={{ r: 5 }}
+                  isAnimationActive={false}
+                />
+              ))}
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+
+      {selectedSeries.length > 0 && (
+        <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2">
+          {selectedSeries.map((series) => (
+            <div
+              key={series.id}
+              className="flex items-center gap-1.5 text-xs text-muted-foreground"
+            >
+              <span
+                className="h-0.5 w-5 rounded-full"
+                style={{
+                  backgroundColor: seriesColors.get(series.id),
+                }}
+              />
+              {series.name}
+            </div>
+          ))}
+        </div>
+      )}
+      <p className="mt-4 text-xs text-muted-foreground">
+        Every menu item has its own line. Use the filter to compare only the
+        items you care about.
+      </p>
+    </>
+  )
+}
+
+function HourlyFulfillmentChart({ data }: { data: AnalyticsData }) {
+  const chartData = data.hourlyStats.map((hour) => ({
+    hour: hour.hour,
+    orders: hour.orders,
+    fulfilledOrders: hour.fulfilledOrders,
+    medianMinutes: hour.medianFulfillmentMinutes,
+  }))
+  const hasFulfillmentData = chartData.some(
+    (hour) => hour.medianMinutes !== null
+  )
+
+  if (!hasFulfillmentData) {
+    return (
+      <div className="rounded-xl border border-dashed px-6 py-14 text-center">
+        <p className="font-medium">No fulfillment data for this day</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Times appear after orders are marked Ready.
+        </p>
+      </div>
+    )
+  }
+
+  return (
+    <>
       <div
-        className="h-80 w-full"
+        className="h-72 w-full"
         role="img"
-        aria-label={`Items sold by hour on ${formatPopupDate(data.date)}`}
+        aria-label={`Median fulfillment time by hour on ${formatPopupDate(
+          data.date
+        )}`}
       >
         <ResponsiveContainer width="100%" height="100%">
           <LineChart
@@ -272,10 +533,11 @@ function HourlyItemChart({ data }: { data: AnalyticsData }) {
             />
             <YAxis
               allowDecimals={false}
+              tickFormatter={(minutes) => `${minutes}m`}
               tickLine={false}
               axisLine={false}
               tickMargin={8}
-              width={28}
+              width={48}
             />
             <Tooltip
               cursor={{
@@ -287,97 +549,67 @@ function HourlyItemChart({ data }: { data: AnalyticsData }) {
                 if (!active || !payload?.length) return null
 
                 const point = payload[0]?.payload as
-                  | HourlyChartPoint
+                  | (typeof chartData)[number]
                   | undefined
                 if (!point) return null
 
                 return (
-                  <div className="min-w-48 rounded-lg border bg-background p-3 text-xs shadow-xl">
+                  <div className="min-w-44 rounded-lg border bg-background p-3 text-xs shadow-xl">
                     <p className="font-semibold text-foreground">
                       {formatHourRange(Number(label))}
                     </p>
                     <p className="mt-1 text-muted-foreground">
-                      {point.orders}{" "}
-                      {point.orders === 1 ? "order" : "orders"} ·{" "}
-                      {point.totalItems} items ·{" "}
-                      {formatPriceRange(
-                        point.orderValueMin,
-                        point.orderValueMax
-                      )}
+                      {formatDuration(point.medianMinutes)} median ·{" "}
+                      {point.fulfilledOrders} ready{" "}
+                      {point.fulfilledOrders === 1 ? "order" : "orders"}
                     </p>
-                    <div className="mt-2 space-y-1.5">
-                      {payload.map((entry) => {
-                        const itemId = String(entry.dataKey)
-                        const quantity = Number(entry.value ?? 0)
-                        if (quantity === 0) return null
-
-                        return (
-                          <p
-                            key={itemId}
-                            className="flex items-center justify-between gap-4"
-                          >
-                            <span className="flex min-w-0 items-center gap-2 text-muted-foreground">
-                              <span
-                                className="size-2 shrink-0 rounded-full"
-                                style={{
-                                  backgroundColor: seriesColors.get(itemId),
-                                }}
-                              />
-                              <span className="truncate">
-                                {seriesNames.get(itemId)}
-                              </span>
-                            </span>
-                            <span className="font-medium tabular-nums text-foreground">
-                              {quantity}
-                            </span>
-                          </p>
-                        )
-                      })}
-                    </div>
                   </div>
                 )
               }}
             />
-            {data.itemSeries.map((series, index) => (
-              <Line
-                key={series.id}
-                type="monotone"
-                dataKey={series.id}
-                name={series.name}
-                stroke={ITEM_COLORS[index % ITEM_COLORS.length]}
-                strokeWidth={2.5}
-                dot={{
-                  r: 3,
-                  fill: "var(--background)",
-                  strokeWidth: 2,
-                }}
-                activeDot={{ r: 5 }}
-                isAnimationActive={false}
+            {data.service.medianFulfillmentMinutes !== null && (
+              <ReferenceLine
+                y={data.service.medianFulfillmentMinutes}
+                stroke="var(--muted-foreground)"
+                strokeDasharray="5 5"
+                strokeOpacity={0.65}
               />
-            ))}
+            )}
+            <Line
+              type="monotone"
+              dataKey="medianMinutes"
+              name="Median fulfillment"
+              stroke="var(--primary)"
+              strokeWidth={2.5}
+              dot={{
+                r: 3,
+                fill: "var(--background)",
+                strokeWidth: 2,
+              }}
+              activeDot={{ r: 5 }}
+              connectNulls={false}
+              isAnimationActive={false}
+            />
           </LineChart>
         </ResponsiveContainer>
       </div>
 
       <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2">
-        {data.itemSeries.map((series, index) => (
-          <div
-            key={series.id}
-            className="flex items-center gap-1.5 text-xs text-muted-foreground"
-          >
-            <span
-              className="h-0.5 w-5 rounded-full"
-              style={{
-                backgroundColor: ITEM_COLORS[index % ITEM_COLORS.length],
-              }}
-            />
-            {series.name}
+        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <span className="h-0.5 w-5 rounded-full bg-primary" />
+          Hourly median
+        </div>
+        {data.service.medianFulfillmentMinutes !== null && (
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <span className="w-5 border-t border-dashed border-muted-foreground" />
+            Popup median:{" "}
+            {formatDuration(data.service.medianFulfillmentMinutes)}
           </div>
-        ))}
+        )}
       </div>
       <p className="mt-4 text-xs text-muted-foreground">
-        Each line shows an item&apos;s hourly quantity. Hover or focus the
-        chart for total orders and order value.
+        Median time from order placement to the latest Ready update, grouped
+        by the hour the order was placed.
       </p>
     </>
   )
@@ -682,7 +914,19 @@ export default function AnalyticsPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <HourlyItemChart data={data} />
+              <HourlyItemChart key={data.date} data={data} />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Fulfillment time, hour by hour</CardTitle>
+              <CardDescription>
+                How long completed orders took as service moved along
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <HourlyFulfillmentChart data={data} />
             </CardContent>
           </Card>
 
@@ -771,7 +1015,8 @@ export default function AnalyticsPage() {
                 className="mt-0.5 size-3.5 shrink-0"
                 aria-hidden="true"
               />
-              Item colors represent the five best sellers plus an Other group.
+              Every sold item stays separate and can be filtered in the hourly
+              chart.
             </p>
             <p className="flex items-start gap-2">
               <CircleDollarSign

@@ -4,7 +4,6 @@ import { prisma } from "@/lib/prisma"
 
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/
 const HOUR_IN_MS = 60 * 60 * 1000
-const OTHER_ITEMS_ID = "__other_items__"
 
 function isValidDateKey(value: string | null): value is string {
   if (!value || !DATE_PATTERN.test(value)) return false
@@ -176,6 +175,7 @@ export async function GET(
         orderValueMin: number
         orderValueMax: number
         itemQuantities: Map<string, number>
+        fulfillmentMinutes: number[]
       }
     >()
 
@@ -186,10 +186,21 @@ export async function GET(
         orderValueMin: 0,
         orderValueMax: 0,
         itemQuantities: new Map<string, number>(),
+        fulfillmentMinutes: [],
       }
       hourData.orders += 1
       hourData.orderValueMin += order.totalMin
       hourData.orderValueMax += order.totalMax
+      if (order.status === "READY") {
+        hourData.fulfillmentMinutes.push(
+          Math.max(
+            0,
+            Math.round(
+              (order.updatedAt.getTime() - order.createdAt.getTime()) / 60_000
+            )
+          )
+        )
+      }
 
       for (const item of order.items) {
         const existing = itemSales.get(item.menuItemId)
@@ -218,18 +229,10 @@ export async function GET(
         second.quantity - first.quantity ||
         second.orderValueMax - first.orderValueMax
     )
-    const primarySeries = rankedItems.slice(0, 5).map((item) => ({
+    const itemSeries = rankedItems.map((item) => ({
       id: item.id,
       name: item.name,
     }))
-    const primarySeriesIds = new Set(primarySeries.map((item) => item.id))
-    const itemSeries =
-      rankedItems.length > primarySeries.length
-        ? [
-            ...primarySeries,
-            { id: OTHER_ITEMS_ID, name: "Other items" },
-          ]
-        : primarySeries
 
     const activeHours = [...hourlyTotals.keys()].sort(
       (first, second) => first - second
@@ -244,19 +247,16 @@ export async function GET(
             (_, index) => {
               const hour = firstHour + index
               const totals = hourlyTotals.get(hour)
-              const otherQuantity = totals
-                ? [...totals.itemQuantities.entries()].reduce(
-                    (sum, [itemId, quantity]) =>
-                      primarySeriesIds.has(itemId) ? sum : sum + quantity,
-                    0
-                  )
-                : 0
 
               return {
                 hour,
                 orders: totals?.orders ?? 0,
                 orderValueMin: totals?.orderValueMin ?? 0,
                 orderValueMax: totals?.orderValueMax ?? 0,
+                fulfilledOrders: totals?.fulfillmentMinutes.length ?? 0,
+                medianFulfillmentMinutes: median(
+                  totals?.fulfillmentMinutes ?? []
+                ),
                 totalItems: totals
                   ? [...totals.itemQuantities.values()].reduce(
                       (sum, quantity) => sum + quantity,
@@ -265,10 +265,7 @@ export async function GET(
                   : 0,
                 items: itemSeries.map((series) => ({
                   id: series.id,
-                  quantity:
-                    series.id === OTHER_ITEMS_ID
-                      ? otherQuantity
-                      : totals?.itemQuantities.get(series.id) ?? 0,
+                  quantity: totals?.itemQuantities.get(series.id) ?? 0,
                 })),
               }
             }

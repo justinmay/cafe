@@ -17,6 +17,8 @@ import {
   Sparkles,
 } from "lucide-react"
 import {
+  Area,
+  AreaChart,
   CartesianGrid,
   Line,
   LineChart,
@@ -343,10 +345,12 @@ function HourlyItemChart({ data }: { data: AnalyticsData }) {
         <div
           className="h-80 w-full"
           role="img"
-          aria-label={`Items sold by hour on ${formatPopupDate(data.date)}`}
+          aria-label={`Stacked items sold by hour on ${formatPopupDate(
+            data.date
+          )}`}
         >
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart
+            <AreaChart
               data={chartData}
               margin={{ top: 12, right: 12, bottom: 4, left: 0 }}
               accessibilityLayer
@@ -384,6 +388,10 @@ function HourlyItemChart({ data }: { data: AnalyticsData }) {
                     | HourlyChartPoint
                     | undefined
                   if (!point) return null
+                  const visibleItems = payload.reduce(
+                    (sum, entry) => sum + Number(entry.value ?? 0),
+                    0
+                  )
 
                   return (
                     <div className="min-w-48 rounded-lg border bg-background p-3 text-xs shadow-xl">
@@ -391,9 +399,9 @@ function HourlyItemChart({ data }: { data: AnalyticsData }) {
                         {formatHourRange(Number(label))}
                       </p>
                       <p className="mt-1 text-muted-foreground">
+                        {visibleItems} items in view ·{" "}
                         {point.orders}{" "}
                         {point.orders === 1 ? "order" : "orders"} ·{" "}
-                        {point.totalItems} items ·{" "}
                         {formatPriceRange(
                           point.orderValueMin,
                           point.orderValueMax
@@ -434,23 +442,22 @@ function HourlyItemChart({ data }: { data: AnalyticsData }) {
                 }}
               />
               {selectedSeries.map((series) => (
-                <Line
+                <Area
                   key={series.id}
                   type="monotone"
                   dataKey={series.id}
                   name={series.name}
+                  stackId="items"
                   stroke={seriesColors.get(series.id)}
-                  strokeWidth={2.5}
-                  dot={{
-                    r: 3,
-                    fill: "var(--background)",
-                    strokeWidth: 2,
-                  }}
-                  activeDot={{ r: 5 }}
+                  fill={seriesColors.get(series.id)}
+                  fillOpacity={0.28}
+                  strokeWidth={2}
+                  dot={false}
+                  activeDot={{ r: 4 }}
                   isAnimationActive={false}
                 />
               ))}
-            </LineChart>
+            </AreaChart>
           </ResponsiveContainer>
         </div>
       )}
@@ -463,7 +470,7 @@ function HourlyItemChart({ data }: { data: AnalyticsData }) {
               className="flex items-center gap-1.5 text-xs text-muted-foreground"
             >
               <span
-                className="h-0.5 w-5 rounded-full"
+                className="size-2.5 rounded-sm"
                 style={{
                   backgroundColor: seriesColors.get(series.id),
                 }}
@@ -474,8 +481,8 @@ function HourlyItemChart({ data }: { data: AnalyticsData }) {
         </div>
       )}
       <p className="mt-4 text-xs text-muted-foreground">
-        Every menu item has its own line. Use the filter to compare only the
-        items you care about.
+        Item bands stack into each hour&apos;s total. Use the filter to compare
+        only the items you care about.
       </p>
     </>
   )

@@ -96,6 +96,12 @@ interface AnalyticsData {
       quantity: number
     }[]
   }[]
+  fulfillmentDistribution: {
+    startMinutes: number
+    endMinutes: number
+    midpointMinutes: number
+    orders: number
+  }[]
   topItems: {
     id: string
     name: string
@@ -179,6 +185,10 @@ function formatDuration(minutes: number | null) {
     : `${hours}h`
 }
 
+function formatDurationTick(minutes: number) {
+  return minutes < 60 ? `${minutes}m` : formatDuration(minutes)
+}
+
 function SummaryCard({
   label,
   value,
@@ -220,7 +230,10 @@ function LoadingState() {
         ))}
       </div>
       <Skeleton className="h-[28rem] rounded-xl" />
-      <Skeleton className="h-[24rem] rounded-xl" />
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Skeleton className="h-[24rem] rounded-xl" />
+        <Skeleton className="h-[24rem] rounded-xl" />
+      </div>
       <div className="grid gap-6 lg:grid-cols-2">
         <Skeleton className="h-72 rounded-xl" />
         <Skeleton className="h-72 rounded-xl" />
@@ -373,7 +386,7 @@ function HourlyItemChart({ data }: { data: AnalyticsData }) {
                 tickLine={false}
                 axisLine={false}
                 tickMargin={8}
-                width={28}
+                width={40}
               />
               <Tooltip
                 cursor={{
@@ -617,6 +630,167 @@ function HourlyFulfillmentChart({ data }: { data: AnalyticsData }) {
       <p className="mt-4 text-xs text-muted-foreground">
         Median time from order placement to the latest Ready update, grouped
         by the hour the order was placed.
+      </p>
+    </>
+  )
+}
+
+function FulfillmentDistributionChart({ data }: { data: AnalyticsData }) {
+  const buckets = data.fulfillmentDistribution
+  const totalOrders = buckets.reduce(
+    (sum, bucket) => sum + bucket.orders,
+    0
+  )
+
+  if (buckets.length === 0) {
+    return (
+      <div className="rounded-xl border border-dashed px-6 py-14 text-center">
+        <p className="font-medium">No fulfillment data for this day</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          The distribution appears after orders are marked Ready.
+        </p>
+      </div>
+    )
+  }
+
+  const firstBucket = buckets[0]
+  const lastBucket = buckets[buckets.length - 1]
+  const chartData = [
+    {
+      minutes: firstBucket.startMinutes,
+      orders: 0,
+      startMinutes: firstBucket.startMinutes,
+      endMinutes: firstBucket.startMinutes,
+      boundary: true,
+    },
+    ...buckets.map((bucket) => ({
+      minutes: bucket.midpointMinutes,
+      orders: bucket.orders,
+      startMinutes: bucket.startMinutes,
+      endMinutes: bucket.endMinutes,
+      boundary: false,
+    })),
+    {
+      minutes: lastBucket.endMinutes,
+      orders: 0,
+      startMinutes: lastBucket.endMinutes,
+      endMinutes: lastBucket.endMinutes,
+      boundary: true,
+    },
+  ]
+
+  return (
+    <>
+      <div
+        className="h-72 w-full"
+        role="img"
+        aria-label={`Fulfillment time distribution on ${formatPopupDate(
+          data.date
+        )}`}
+      >
+        <ResponsiveContainer width="100%" height="100%">
+          <AreaChart
+            data={chartData}
+            margin={{ top: 12, right: 12, bottom: 4, left: 0 }}
+            accessibilityLayer
+          >
+            <CartesianGrid
+              vertical={false}
+              stroke="var(--border)"
+              strokeDasharray="4 4"
+            />
+            <XAxis
+              type="number"
+              dataKey="minutes"
+              domain={[0, "dataMax"]}
+              tickFormatter={(minutes) =>
+                formatDurationTick(Number(minutes))
+              }
+              tickLine={false}
+              axisLine={false}
+              tickMargin={10}
+              tickCount={5}
+              allowDecimals={false}
+            />
+            <YAxis
+              allowDecimals={false}
+              tickLine={false}
+              axisLine={false}
+              tickMargin={8}
+              width={40}
+            />
+            <Tooltip
+              cursor={{
+                stroke: "var(--muted-foreground)",
+                strokeDasharray: "4 4",
+                strokeOpacity: 0.5,
+              }}
+              content={({ active, payload }) => {
+                if (!active || !payload?.length) return null
+
+                const point = payload[0]?.payload as
+                  | (typeof chartData)[number]
+                  | undefined
+                if (!point || point.boundary) return null
+
+                const share =
+                  totalOrders > 0
+                    ? Math.round((point.orders / totalOrders) * 100)
+                    : 0
+
+                return (
+                  <div className="min-w-40 rounded-lg border bg-background p-3 text-xs shadow-xl">
+                    <p className="font-semibold text-foreground">
+                      {point.startMinutes}–{point.endMinutes} min
+                    </p>
+                    <p className="mt-1 text-muted-foreground">
+                      {point.orders}{" "}
+                      {point.orders === 1 ? "order" : "orders"} · {share}%
+                    </p>
+                  </div>
+                )
+              }}
+            />
+            {data.service.medianFulfillmentMinutes !== null && (
+              <ReferenceLine
+                x={data.service.medianFulfillmentMinutes}
+                stroke="var(--muted-foreground)"
+                strokeDasharray="5 5"
+                strokeOpacity={0.65}
+              />
+            )}
+            <Area
+              type="monotone"
+              dataKey="orders"
+              name="Ready orders"
+              stroke="var(--primary)"
+              fill="var(--primary)"
+              fillOpacity={0.2}
+              strokeWidth={2.5}
+              dot={false}
+              activeDot={{ r: 4 }}
+              isAnimationActive={false}
+            />
+          </AreaChart>
+        </ResponsiveContainer>
+      </div>
+
+      <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2">
+        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <span className="size-2.5 rounded-sm bg-primary/70" />
+          Ready orders
+        </div>
+        {data.service.medianFulfillmentMinutes !== null && (
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <span className="w-5 border-t border-dashed border-muted-foreground" />
+            Median: {formatDuration(data.service.medianFulfillmentMinutes)}
+          </div>
+        )}
+      </div>
+      <p className="mt-4 text-xs text-muted-foreground">
+        Smoothed duration buckets across {totalOrders} ready{" "}
+        {totalOrders === 1 ? "order" : "orders"} reveal the typical cluster
+        and the slow tail.
       </p>
     </>
   )
@@ -925,17 +1099,31 @@ export default function AnalyticsPage() {
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Fulfillment time, hour by hour</CardTitle>
-              <CardDescription>
-                How long completed orders took as service moved along
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <HourlyFulfillmentChart data={data} />
-            </CardContent>
-          </Card>
+          <div className="grid gap-6 lg:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle>Fulfillment time, hour by hour</CardTitle>
+                <CardDescription>
+                  How long completed orders took as service moved along
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <HourlyFulfillmentChart data={data} />
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Fulfillment time distribution</CardTitle>
+                <CardDescription>
+                  Where Ready times clustered and where they stretched
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <FulfillmentDistributionChart data={data} />
+              </CardContent>
+            </Card>
+          </div>
 
           <div className="grid gap-6 lg:grid-cols-2">
             <ServiceSnapshot data={data} />

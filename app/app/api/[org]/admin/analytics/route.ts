@@ -62,6 +62,31 @@ function median(values: number[]) {
   return Math.round((sorted[middle - 1] + sorted[middle]) / 2)
 }
 
+function buildFulfillmentDistribution(values: number[]) {
+  if (values.length === 0) return []
+
+  const maxMinutes = Math.max(...values)
+  const bucketSize =
+    maxMinutes <= 20 ? 2 : maxMinutes <= 60 ? 5 : maxMinutes <= 180 ? 10 : 30
+  const bucketCount = Math.floor(maxMinutes / bucketSize) + 1
+  const buckets = Array.from({ length: bucketCount }, (_, index) => ({
+    startMinutes: index * bucketSize,
+    endMinutes: (index + 1) * bucketSize,
+    midpointMinutes: index * bucketSize + bucketSize / 2,
+    orders: 0,
+  }))
+
+  for (const minutes of values) {
+    const bucketIndex = Math.min(
+      Math.floor(minutes / bucketSize),
+      buckets.length - 1
+    )
+    buckets[bucketIndex].orders += 1
+  }
+
+  return buckets
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ org: string }> }
@@ -324,6 +349,9 @@ export async function GET(
       },
       itemSeries,
       hourlyStats,
+      fulfillmentDistribution: buildFulfillmentDistribution(
+        fulfillmentMinutes
+      ),
       topItems: rankedItems.slice(0, 8),
     })
   } catch (error) {

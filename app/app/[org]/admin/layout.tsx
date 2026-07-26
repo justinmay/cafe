@@ -22,6 +22,9 @@ export default function AdminLayout({
             <Link href={`/${org}/orders`}>
               <Button variant="ghost">Orders</Button>
             </Link>
+            <Link href={`/${org}/admin/analytics`}>
+              <Button variant="ghost">Analytics</Button>
+            </Link>
             <Link href={`/${org}/menu`}>
               <Button variant="ghost">View Menu</Button>
             </Link>

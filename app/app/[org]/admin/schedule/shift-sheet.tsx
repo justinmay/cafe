@@ -4,11 +4,17 @@ import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import { nameLimit, shiftMinutes, shiftStarts, stations, type ShiftSignup, type Station } from "@/lib/schedule"
+import { nameLimit, shiftEnd, shiftMinutes, shiftStarts, stations, type ShiftSignup, type Station } from "@/lib/schedule"
 
 function timeLabel(minutes: number) {
   const hour = Math.floor(minutes / 60)
   return `${hour % 12 || 12}:${String(minutes % 60).padStart(2, "0")} ${hour < 12 ? "AM" : "PM"}`
+}
+
+function timeRange(start: number, end: number) {
+  const from = timeLabel(start)
+  const samePeriod = (start < 720) === (end < 720)
+  return `${samePeriod ? from.slice(0, -3) : from} – ${timeLabel(end)}`
 }
 
 export function ShiftSheet({ org }: { org: string }) {
@@ -38,12 +44,12 @@ export function ShiftSheet({ org }: { org: string }) {
   }, [endpoint, attempt])
 
   return (
-    <Card className="mt-6 max-w-3xl gap-0 overflow-hidden py-0">
+    <Card className="mt-6 max-w-5xl gap-0 overflow-hidden py-0">
       <table className="w-full table-fixed text-left text-sm">
         <caption className="sr-only">Popup shift signups from 10 AM to 2 PM</caption>
         <thead className="bg-muted/60">
           <tr>
-            <th scope="col" className="w-[32%] px-3 py-4 sm:px-5">Time</th>
+            <th scope="col" className="w-[22%] px-2 py-4 sm:px-5">Time</th>
             {stations.map(({ id, label }) => (
               <th key={id} scope="col" className="px-2 py-4 sm:px-4">{label}</th>
             ))}
@@ -51,19 +57,27 @@ export function ShiftSheet({ org }: { org: string }) {
         </thead>
         <tbody>
           {shiftStarts.map((startMinute) => {
-            const time = `${timeLabel(startMinute)} – ${timeLabel(startMinute + shiftMinutes)}`
+            const time = timeRange(startMinute, startMinute + shiftMinutes)
             return (
               <tr key={startMinute} className="border-t">
-                <th scope="row" className="px-3 py-3 font-medium tabular-nums sm:px-5">{time}</th>
-                {stations.map(({ id, label }) => {
+                <th scope="row" className="px-2 py-3 text-xs font-medium tabular-nums sm:px-5 sm:text-sm">{time}</th>
+                {stations.map(({ id, label, starts }) => {
+                  const end = shiftEnd(starts, startMinute)
+                  if (end === null) return null
+                  const range = timeRange(startMinute, end)
+                  const fieldLabel = `${label}, ${range}`
                   const signup = entries?.find((entry) => entry.station === id && entry.startMinute === startMinute)
                   return (
-                    <td key={id} className="px-2 py-3 align-top sm:px-4">
+                    <td key={id} rowSpan={(end - startMinute) / shiftMinutes}
+                      className="border-l border-t px-1.5 py-3 align-middle sm:px-4">
+                      {id !== "FRONT_OF_HOUSE" && (
+                        <span className="mb-1 block text-xs tabular-nums text-muted-foreground">{range}</span>
+                      )}
                       {entries ? (
                         <SignupField endpoint={endpoint} station={id} startMinute={startMinute}
-                          label={`${label}, ${time}`} initialName={signup?.name ?? ""} />
+                          label={fieldLabel} initialName={signup?.name ?? ""} />
                       ) : (
-                        <Input aria-label={`${label}, ${time}`} disabled />
+                        <Input aria-label={fieldLabel} disabled />
                       )}
                     </td>
                   )

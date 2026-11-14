@@ -56,6 +56,7 @@ model ShiftSignup {
 enum ShiftStation {
   FRONT_OF_HOUSE
   BARISTA
+  BARISTA_2
 }
 
 model MenuItem {

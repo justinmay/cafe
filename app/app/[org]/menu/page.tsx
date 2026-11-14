@@ -306,19 +306,11 @@ export default function MenuPage() {
                 >
                   <div className="absolute inset-0 overflow-hidden bg-gradient-to-br from-secondary via-muted to-accent">
                     {item.image ? (
-                      <>
-                        <img
-                          src={item.image}
-                          alt=""
-                          aria-hidden="true"
-                          className="absolute inset-0 h-full w-full scale-110 object-cover opacity-45 blur-xl"
-                        />
-                        <img
-                          src={item.image}
-                          alt=""
-                          className="relative h-full w-full object-contain transition-transform duration-500 group-hover:scale-[1.025]"
-                        />
-                      </>
+                      <img
+                        src={item.image}
+                        alt=""
+                        className="h-full w-full object-cover"
+                      />
                     ) : (
                       <div className="flex h-full items-center justify-center">
                         <Coffee

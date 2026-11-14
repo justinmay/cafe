@@ -4,6 +4,7 @@ import Link from "next/link"
 import { useParams, usePathname } from "next/navigation"
 import {
   BarChart3,
+  CalendarDays,
   ClipboardList,
   ExternalLink,
   LogOut,
@@ -33,6 +34,13 @@ const navItems = [
     icon: BarChart3,
     isActive: (pathname: string, org: string) =>
       pathname.startsWith(`/${org}/admin/analytics`),
+  },
+  {
+    label: "Schedule",
+    href: (org: string) => `/${org}/admin/schedule`,
+    icon: CalendarDays,
+    isActive: (pathname: string, org: string) =>
+      pathname === `/${org}/admin/schedule`,
   },
 ]
 

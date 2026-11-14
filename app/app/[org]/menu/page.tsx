@@ -257,7 +257,7 @@ export default function MenuPage() {
               {orgName}
             </h1>
             <p className="mt-4 max-w-lg text-sm leading-relaxed text-white/80 sm:text-base">
-              Made in small batches. Pick a favorite and make it yours.
+              Made in small batches. Try one, try many! A portion of proceeds will be donated to City Harvest.
             </p>
           </div>
         </header>

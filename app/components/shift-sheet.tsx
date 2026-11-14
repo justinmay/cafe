@@ -20,7 +20,7 @@ function timeRange(start: number, end: number) {
   return `${samePeriod ? from.slice(0, -3) : from} – ${timeLabel(end)}`
 }
 
-export function ShiftSheet({ org }: { org: string }) {
+export function ShiftSheet({ org, editable = false }: { org: string; editable?: boolean }) {
   const endpoint = `/api/${encodeURIComponent(org)}/admin/schedule`
   const [entries, setEntries] = useState<ShiftSignup[] | null>(null)
   const [error, setError] = useState("")
@@ -63,18 +63,21 @@ export function ShiftSheet({ org }: { org: string }) {
     )
   }
 
+  const loadStatus = entries === null && (
+    <div className="flex items-center gap-3 text-sm text-muted-foreground">
+      <span role="status">{error || "Loading signups…"}</span>
+      {error && <Button variant="outline" size="sm" onClick={() => { setError(""); setAttempt(attempt + 1) }}>Retry</Button>}
+    </div>
+  )
+  if (!editable && entries === null) return loadStatus
+
   const roster = new Map<Barista, string>(baristaPositions.map(({ letter, station, startMinute }) =>
-    [letter, signupName(station, startMinute) || letter]
+    [letter, signupName(station, startMinute) || (editable ? letter : `Barista ${letter} (unassigned)`)]
   ))
 
   return (
-    <div className="mt-6 space-y-4">
-      {entries === null && (
-        <div className="flex items-center gap-3 text-sm text-muted-foreground">
-          <span role="status">{error || "Loading signups…"}</span>
-          {error && <Button variant="outline" size="sm" onClick={() => { setError(""); setAttempt(attempt + 1) }}>Retry</Button>}
-        </div>
-      )}
+    <div className="space-y-4">
+      {loadStatus}
       <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
         <Card className="gap-0 overflow-hidden py-0">
           <div className="p-4 sm:p-5">
@@ -82,14 +85,16 @@ export function ShiftSheet({ org }: { org: string }) {
             <p className="mt-1 text-sm text-muted-foreground">
               From 11:30 AM to 2 PM, two baristas are on bar and each gets one 50-minute break.
             </p>
-            <div className="mt-4 grid grid-cols-3 gap-2 sm:gap-3">
-              {baristaPositions.map(({ letter, station, startMinute }) => (
-                <div key={letter}>
-                  <label htmlFor={`signup-${station}-${startMinute}`} className="mb-1 block text-sm font-medium">Barista {letter}</label>
-                  {field(station, startMinute, `Barista ${letter}`)}
-                </div>
-              ))}
-            </div>
+            {editable && (
+              <div className="mt-4 grid grid-cols-3 gap-2 sm:gap-3">
+                {baristaPositions.map(({ letter, station, startMinute }) => (
+                  <div key={letter}>
+                    <label htmlFor={`signup-${station}-${startMinute}`} className="mb-1 block text-sm font-medium">Barista {letter}</label>
+                    {field(station, startMinute, `Barista ${letter}`)}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
           <table className="w-full table-fixed text-left text-sm">
             <caption className="sr-only">Barista duties and breaks from 10 AM to 2 PM</caption>
@@ -133,7 +138,11 @@ export function ShiftSheet({ org }: { org: string }) {
                 return (
                   <tr key={start} className="border-t">
                     <th scope="row" className="px-3 py-3 text-xs font-medium tabular-nums sm:text-sm">{range}</th>
-                    <td className="px-3 py-2">{field("FRONT_OF_HOUSE", start, `Front of house, ${range}`)}</td>
+                    <td className="px-3 py-2 [overflow-wrap:anywhere]">
+                      {editable
+                        ? field("FRONT_OF_HOUSE", start, `Front of house, ${range}`)
+                        : signupName("FRONT_OF_HOUSE", start) || "Unassigned"}
+                    </td>
                   </tr>
                 )
               })}

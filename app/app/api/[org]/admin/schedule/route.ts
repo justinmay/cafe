@@ -3,7 +3,7 @@ import { z } from "zod"
 import { Prisma } from "@/app/generated/prisma/client"
 import { getSession } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
-import { nameLimit, shiftStarts, stations } from "@/lib/schedule"
+import { nameLimit, shiftEnd, stations } from "@/lib/schedule"
 
 type Context = { params: Promise<{ org: string }> }
 
@@ -15,10 +15,12 @@ async function scheduleOrganization({ params }: Context) {
 
 const editSchema = z.object({
   station: z.enum(stations.map((station) => station.id)),
-  startMinute: z.number().int().refine((minute) => shiftStarts.includes(minute)),
+  startMinute: z.number().int(),
   previousName: z.string().min(1).max(nameLimit).nullable(),
   name: z.string().trim().min(1).max(nameLimit).nullable(),
-})
+}).refine(({ station, startMinute }) =>
+  stations.some(({ id, starts }) => id === station && shiftEnd(starts, startMinute) !== null)
+)
 
 export async function GET(_request: NextRequest, context: Context) {
   const organizationId = await scheduleOrganization(context)

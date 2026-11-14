@@ -40,6 +40,22 @@ model Organization {
   members             OrganizationMember[]
   menuItems           MenuItem[]
   orders              Order[]
+  shiftSignups        ShiftSignup[]
+}
+
+model ShiftSignup {
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  station        ShiftStation
+  startMinute    Int
+  name           String       @db.VarChar(100)
+
+  @@id([organizationId, station, startMinute])
+}
+
+enum ShiftStation {
+  FRONT_OF_HOUSE
+  BARISTA
 }
 
 model MenuItem {

@@ -5,16 +5,15 @@ import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Suspense } from "react"
+import { QRCodeSVG } from "qrcode.react"
 import { formatPriceRange } from "@/lib/format"
 
 const DEFAULT_CHECKOUT_MESSAGE =
   "Payment via Venmo only. You'll pay after placing your order."
 
-function OrderConfirmedContent() {
+function OrderConfirmedContent({ org }: { org: string }) {
   const searchParams = useSearchParams()
-  const params = useParams()
   const router = useRouter()
-  const org = params.org as string
   const orderNumber = searchParams.get("orderNumber")
   const priceMinParam = searchParams.get("priceMin")
   const priceMaxParam = searchParams.get("priceMax")
@@ -30,9 +29,13 @@ function OrderConfirmedContent() {
   const [checkoutMessage, setCheckoutMessage] = useState(
     DEFAULT_CHECKOUT_MESSAGE
   )
+  const recipients = [...checkoutMessage.matchAll(/\bvenmo[\s:]+@([a-z\d_-]+)(?=[.,!?;:)]*(?:\s|$))/gi)]
+  const venmoHandle = recipients.length === 1 ? recipients[0][1] : null
+  const venmoUrl = venmoHandle ? `https://venmo.com/u/${venmoHandle}` : null
 
   useEffect(() => {
-    fetch(`/api/${org}/menu`)
+    const controller = new AbortController()
+    fetch(`/api/${org}/menu`, { signal: controller.signal })
       .then((res) => {
         if (!res.ok) throw new Error("Failed to load checkout message")
         return res.json()
@@ -45,6 +48,7 @@ function OrderConfirmedContent() {
       .catch(() => {
         // Use the default checkout message on error
       })
+    return () => controller.abort()
   }, [org])
 
   useEffect(() => {
@@ -134,6 +138,22 @@ function OrderConfirmedContent() {
             <p className="text-base font-semibold leading-relaxed text-foreground">
               {checkoutMessage}
             </p>
+            {venmoUrl && (
+              <div className="mt-4 flex flex-col items-center gap-3">
+                <QRCodeSVG
+                  value={venmoUrl}
+                  size={180}
+                  level="M"
+                  marginSize={4}
+                  title={`Scan to open @${venmoHandle} on Venmo`}
+                />
+                <Button asChild variant="outline">
+                  <a href={venmoUrl} target="_blank" rel="noopener noreferrer">
+                    Open @{venmoHandle} in Venmo
+                  </a>
+                </Button>
+              </div>
+            )}
           </div>
 
           <div className="text-sm text-muted-foreground">
@@ -154,9 +174,10 @@ function OrderConfirmedContent() {
 }
 
 export default function OrderConfirmedPage() {
+  const { org } = useParams<{ org: string }>()
   return (
     <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
-      <OrderConfirmedContent />
+      <OrderConfirmedContent key={org} org={org} />
     </Suspense>
   )
 }

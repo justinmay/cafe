@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
-import { Prisma } from "@/app/generated/prisma/client"
+import { Prisma, ShiftStation } from "@/app/generated/prisma/client"
 import { getSession } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
-import { nameLimit, shiftEnd, stations } from "@/lib/schedule"
+import { isSignupSlot, nameLimit } from "@/lib/schedule"
 
 type Context = { params: Promise<{ org: string }> }
 
@@ -14,12 +14,12 @@ async function scheduleOrganization({ params }: Context) {
 }
 
 const editSchema = z.object({
-  station: z.enum(stations.map((station) => station.id)),
+  station: z.enum(ShiftStation),
   startMinute: z.number().int(),
   previousName: z.string().min(1).max(nameLimit).nullable(),
   name: z.string().trim().min(1).max(nameLimit).nullable(),
 }).refine(({ station, startMinute }) =>
-  stations.some(({ id, starts }) => id === station && shiftEnd(starts, startMinute) !== null)
+  isSignupSlot(station, startMinute)
 )
 
 export async function GET(_request: NextRequest, context: Context) {
@@ -31,7 +31,7 @@ export async function GET(_request: NextRequest, context: Context) {
       where: { organizationId },
       select: { station: true, startMinute: true, name: true },
     })
-    return NextResponse.json(signups)
+    return NextResponse.json(signups.filter(({ station, startMinute }) => isSignupSlot(station, startMinute)))
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2021") {
       return NextResponse.json({ error: "Signups will open when the schedule database migration is applied." }, { status: 503 })

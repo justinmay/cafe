@@ -6,11 +6,14 @@ import { useParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { ShiftSheet } from "@/components/shift-sheet"
 import { formatPriceRange } from "@/lib/format"
 import { toast } from "sonner"
 import {
   ArrowLeftIcon,
   BarChart3Icon,
+  CalendarDaysIcon,
   ChefHatIcon,
   CircleCheckIcon,
   CircleIcon,
@@ -649,9 +652,25 @@ export default function OrdersPage() {
               Active orders oldest-first, newest finished orders first
             </p>
           </div>
-          <p className="hidden text-xs font-semibold text-muted-foreground sm:block">
-            {orders.length} {orders.length === 1 ? "order" : "orders"} total
-          </p>
+          <div className="flex items-center gap-3">
+            <p className="hidden text-xs font-semibold text-muted-foreground sm:block">
+              {orders.length} {orders.length === 1 ? "order" : "orders"} total
+            </p>
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <CalendarDaysIcon aria-hidden="true" />
+                  Schedule
+                </Button>
+              </DialogTrigger>
+              <DialogContent aria-describedby={undefined} className="max-h-[90dvh] overflow-y-auto p-4 sm:max-w-5xl sm:p-6">
+                <DialogHeader>
+                  <DialogTitle className="font-display text-2xl">Staff schedule</DialogTitle>
+                </DialogHeader>
+                <ShiftSheet key={org} org={org} />
+              </DialogContent>
+            </Dialog>
+          </div>
         </div>
 
         <div className="grid gap-4 lg:h-[calc(100vh-14rem)] lg:grid-cols-3">

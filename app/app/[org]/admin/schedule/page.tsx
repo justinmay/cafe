@@ -1,5 +1,5 @@
 import type { Metadata } from "next"
-import { ShiftSheet } from "./shift-sheet"
+import { ShiftSheet } from "@/components/shift-sheet"
 
 export const metadata: Metadata = {
   title: "Schedule | Cafe POS",
@@ -14,9 +14,11 @@ export default async function SchedulePage({ params }: { params: Promise<{ org: 
         Schedule
       </h1>
       <p className="mt-2 text-sm text-muted-foreground">
-        Enter a name and press Tab or Enter to save. Clear the field to reopen a shift.
+        Enter each barista’s name once and sign up for front-of-house shifts below. Press Tab or Enter to save.
       </p>
-      <ShiftSheet key={org} org={org} />
+      <div className="mt-6">
+        <ShiftSheet key={org} org={org} editable />
+      </div>
     </div>
   )
 }
